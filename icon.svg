@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a3d14"/>
+      <stop offset="100%" style="stop-color:#0d1a0a"/>
+    </linearGradient>
+    <linearGradient id="leaf" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#a8e8a0"/>
+      <stop offset="100%" style="stop-color:#84cc7a"/>
+    </linearGradient>
+  </defs>
+  <rect width="180" height="180" rx="40" fill="url(#bg)"/>
+  <rect width="180" height="180" rx="40" fill="none" stroke="#2a5220" stroke-width="2"/>
+  <path d="M90 38 C90 38 130 55 130 95 C130 120 112 138 90 142 C68 138 50 120 50 95 C50 55 90 38 90 38Z" fill="url(#leaf)" opacity="0.95"/>
+  <line x1="90" y1="48" x2="90" y2="136" stroke="#1a3d14" stroke-width="2.5" stroke-linecap="round" opacity="0.6"/>
+  <line x1="90" y1="75" x2="63" y2="92" stroke="#1a3d14" stroke-width="1.5" stroke-linecap="round" opacity="0.4"/>
+  <line x1="90" y1="95" x2="58" y2="108" stroke="#1a3d14" stroke-width="1.5" stroke-linecap="round" opacity="0.4"/>
+  <line x1="90" y1="115" x2="65" y2="124" stroke="#1a3d14" stroke-width="1.5" stroke-linecap="round" opacity="0.4"/>
+  <line x1="90" y1="75" x2="117" y2="92" stroke="#1a3d14" stroke-width="1.5" stroke-linecap="round" opacity="0.4"/>
+  <line x1="90" y1="95" x2="122" y2="108" stroke="#1a3d14" stroke-width="1.5" stroke-linecap="round" opacity="0.4"/>
+  <line x1="90" y1="115" x2="115" y2="124" stroke="#1a3d14" stroke-width="1.5" stroke-linecap="round" opacity="0.4"/>
+  <path d="M90 142 Q88 152 84 158" stroke="#84cc7a" stroke-width="3" stroke-linecap="round" fill="none"/>
+</svg>
