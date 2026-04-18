@@ -10,7 +10,7 @@
   <link rel="apple-touch-icon" href="icon.png"/>
   <link rel="icon" type="image/png" href="icon.png"/>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&family=Cormorant+Garamond:wght@400;600;700&display=swap" rel="stylesheet"/>
   <style>
     *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
     html,body{height:100%;background:#0d1a0a;overflow-x:hidden;}
@@ -19,20 +19,24 @@
     input::placeholder,textarea::placeholder{color:#3a5a34;}
     button,input,textarea{font-family:inherit;}
     textarea{-webkit-user-select:text;user-select:text;}
+    .vitalis-logo{font-family:'Cormorant Garamond',serif;font-weight:600;letter-spacing:2px;}
+    .liquid-nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:520px;padding:12px 32px max(20px,env(safe-area-inset-bottom,20px));z-index:100;display:flex;justify-content:center;gap:8px;background:linear-gradient(to top,rgba(13,26,10,0.95) 0%,rgba(13,26,10,0.6) 70%,transparent 100%);}
+    .liquid-nav-inner{display:flex;gap:6px;background:rgba(255,255,255,0.07);backdrop-filter:blur(24px) saturate(180%);-webkit-backdrop-filter:blur(24px) saturate(180%);border:1px solid rgba(255,255,255,0.13);border-radius:100px;padding:6px;box-shadow:0 8px 32px rgba(0,0,0,0.4),inset 0 1px 0 rgba(255,255,255,0.1);}
+    .liquid-tab{display:flex;align-items:center;gap:7px;padding:10px 22px;border-radius:100px;border:none;background:transparent;color:#5a8a52;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.25s cubic-bezier(.4,0,.2,1);font-family:'DM Sans',sans-serif;}
+    .liquid-tab.active{background:linear-gradient(135deg,rgba(132,204,122,0.25),rgba(132,204,122,0.12));color:#84cc7a;box-shadow:inset 0 1px 0 rgba(255,255,255,0.1),0 2px 8px rgba(132,204,122,0.15);border:1px solid rgba(132,204,122,0.2);}
+    .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);z-index:200;display:flex;align-items:center;justify-content:center;padding:24px;}
+    .modal-box{background:linear-gradient(135deg,#1a2d16,#0f1e0c);border:1px solid rgba(132,204,122,0.2);border-radius:24px;padding:28px 24px;width:100%;max-width:320px;text-align:center;box-shadow:0 24px 64px rgba(0,0,0,0.5);}
   </style>
 </head>
 <body>
 <div id="root"></div>
-
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
-
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-
 const firebaseConfig = {
   apiKey: "AIzaSyAo8e9Yf3kduTxOrRAl1FSum5mtS4aFZK4",
   authDomain: "vitalis-health-d22b6.firebaseapp.com",
@@ -42,25 +46,19 @@ const firebaseConfig = {
   appId: "1:928994746177:web:fe026c47017553817c4bc0",
   measurementId: "G-1NDQJY04P3"
 };
-
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-
-window._vitalisAuth = auth;
-window._vitalisDb = db;
-window._vitalisGoogleProvider = new GoogleAuthProvider();
-window._vitalisSignIn = () => signInWithPopup(auth, window._vitalisGoogleProvider);
+window._vitalisSignIn = () => signInWithPopup(auth, new GoogleAuthProvider());
 window._vitalisSignOut = () => signOut(auth);
 window._vitalisOnAuth = (cb) => onAuthStateChanged(auth, cb);
-window._vitalisDoc = (uid) => doc(db, "users", uid);
 window._vitalisSetDoc = (uid, data) => setDoc(doc(db, "users", uid), data);
 window._vitalisOnSnapshot = (uid, cb) => onSnapshot(doc(db, "users", uid), cb);
+window._vitalisReady = true;
+window.dispatchEvent(new Event("vitalisReady"));
 </script>
-
 <script type="text/babel">
 const { useState, useEffect, useRef, useCallback } = React;
-
 const DEFAULT_HABITS = [
   { id: 1, label: "Beber 3L de água 💧" },
   { id: 2, label: "Ir na academia 🏋️" },
@@ -71,7 +69,6 @@ const DEFAULT_HABITS = [
 const DAYS_FULL = ["Domingo","Segunda","Terça","Quarta","Quinta","Sexta","Sábado"];
 const MONTHS = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
 const MONTHS_SHORT = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
-
 function todayKey() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
@@ -79,7 +76,24 @@ function todayKey() {
 function parseKey(key) { const [y,m,d]=key.split("-").map(Number); return new Date(y,m-1,d); }
 function formatKeyFull(key) { const d=parseKey(key); return `${DAYS_FULL[d.getDay()]}, ${d.getDate()} de ${MONTHS[d.getMonth()]} de ${d.getFullYear()}`; }
 function formatKeyShort(key) { const d=parseKey(key); return {day:d.getDate(),month:MONTHS_SHORT[d.getMonth()],weekday:DAYS_FULL[d.getDay()].slice(0,3)}; }
-
+function scheduleNotification(hour=21, minute=0) {
+  if (!("Notification" in window) || Notification.permission !== "granted") return;
+  const now = new Date();
+  const target = new Date();
+  target.setHours(hour, minute, 0, 0);
+  if (target <= now) target.setDate(target.getDate() + 1);
+  const delay = target - now;
+  setTimeout(() => {
+    new Notification("Vitalis 🌿", { body: "Não se esqueça de escrever no seu diário hoje!", icon: "/icon.png" });
+    scheduleNotification(hour, minute);
+  }, delay);
+}
+async function requestNotifications() {
+  if (!("Notification" in window)) return false;
+  if (Notification.permission === "granted") return true;
+  const perm = await Notification.requestPermission();
+  return perm === "granted";
+}
 function RingProgress({percent,size=54,stroke=5}) {
   const r=(size-stroke)/2,circ=2*Math.PI*r,offset=circ-(percent/100)*circ;
   return (
@@ -91,24 +105,59 @@ function RingProgress({percent,size=54,stroke=5}) {
     </svg>
   );
 }
-
-const iconBtn={background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:12,width:42,height:42,cursor:"pointer",fontSize:18,display:"flex",alignItems:"center",justifyContent:"center"};
-const backBtn={background:"none",border:"none",color:"#5a8a52",cursor:"pointer",fontSize:14,padding:0,marginBottom:20,display:"flex",alignItems:"center",gap:6};
+const iconBtn={background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:12,width:40,height:40,cursor:"pointer",fontSize:16,display:"flex",alignItems:"center",justifyContent:"center"};
 const shell={minHeight:"100vh",background:"#0d1a0a",color:"#e8f0e4",fontFamily:"'DM Sans',sans-serif",maxWidth:520,margin:"0 auto",display:"flex",flexDirection:"column",position:"relative"};
 const bg={position:"fixed",inset:0,pointerEvents:"none",zIndex:0,background:"radial-gradient(ellipse at 20% 0%,#1a3d14 0%,transparent 55%),radial-gradient(ellipse at 80% 100%,#0f2a0c 0%,transparent 55%)"};
-
+function LogoutModal({onConfirm, onCancel}) {
+  return (
+    <div className="modal-overlay" onClick={onCancel}>
+      <div className="modal-box" onClick={e=>e.stopPropagation()}>
+        <div style={{fontSize:32,marginBottom:12}}>🚪</div>
+        <div style={{fontSize:18,fontWeight:700,color:"#c8e8c0",marginBottom:8}}>Sair da conta?</div>
+        <div style={{fontSize:13,color:"#5a8a52",marginBottom:24,lineHeight:1.6}}>Você precisará fazer login novamente para acessar seus dados.</div>
+        <div style={{display:"flex",gap:10}}>
+          <button onClick={onCancel} style={{flex:1,padding:"13px",borderRadius:14,border:"1px solid rgba(255,255,255,0.1)",background:"rgba(255,255,255,0.05)",color:"#b0c8a8",fontWeight:600,cursor:"pointer",fontSize:14}}>Cancelar</button>
+          <button onClick={onConfirm} style={{flex:1,padding:"13px",borderRadius:14,border:"none",background:"linear-gradient(135deg,#3a1414,#2a0f0f)",color:"#ff6b6b",fontWeight:700,cursor:"pointer",fontSize:14}}>Sair</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+function BottomNav({tab, setTab}) {
+  return (
+    <div className="liquid-nav">
+      <div className="liquid-nav-inner">
+        <button className={`liquid-tab${tab==="diary"?" active":""}`} onClick={()=>setTab("diary")}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/>
+            <line x1="16" y1="17" x2="8" y2="17"/>
+          </svg>
+          Diário
+        </button>
+        <button className={`liquid-tab${tab==="week"?" active":""}`} onClick={()=>setTab("week")}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="18" y1="20" x2="18" y2="10"/>
+            <line x1="12" y1="20" x2="12" y2="4"/>
+            <line x1="6" y1="20" x2="6" y2="14"/>
+          </svg>
+          Semana
+        </button>
+      </div>
+    </div>
+  );
+}
 function LoginScreen({onLogin, loading}) {
   return (
     <div style={shell}>
       <div style={bg}/>
       <div style={{position:"relative",zIndex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minHeight:"100vh",padding:"40px 32px",textAlign:"center"}}>
         <div style={{fontSize:11,letterSpacing:4,color:"#5a8a52",textTransform:"uppercase",marginBottom:12}}>BEM-VINDO AO</div>
-        <div style={{fontSize:48,fontWeight:900,color:"#84cc7a",lineHeight:1,marginBottom:8}}>Vitalis</div>
+        <div className="vitalis-logo" style={{fontSize:56,color:"#84cc7a",lineHeight:1,marginBottom:8}}>Vitalis</div>
         <div style={{fontSize:15,color:"#5a8a52",marginBottom:60,lineHeight:1.6}}>Seu diário de saúde e<br/>hábitos sincronizado</div>
         <button onClick={onLogin} disabled={loading} style={{display:"flex",alignItems:"center",gap:14,padding:"16px 28px",background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:18,cursor:"pointer",fontSize:15,fontWeight:600,color:"#e8f0e4",width:"100%",maxWidth:300,justifyContent:"center",opacity:loading?0.6:1,transition:"all 0.2s"}}>
-          {loading ? (
-            <span style={{fontSize:14,color:"#5a8a52"}}>Entrando…</span>
-          ) : (
+          {loading?<span style={{fontSize:14,color:"#5a8a52"}}>Entrando…</span>:(
             <>
               <svg width="20" height="20" viewBox="0 0 48 48">
                 <path fill="#FFC107" d="M43.6 20.1H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 7.9 3l5.7-5.7C34.3 6.5 29.4 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.6-.4-3.9z"/>
@@ -120,33 +169,39 @@ function LoginScreen({onLogin, loading}) {
             </>
           )}
         </button>
-        <div style={{marginTop:32,fontSize:12,color:"#3a5a34",lineHeight:1.7}}>
-          Seus dados ficam salvos na nuvem<br/>e sincronizados em todos os dispositivos
-        </div>
+        <div style={{marginTop:32,fontSize:12,color:"#3a5a34",lineHeight:1.7}}>Seus dados ficam salvos na nuvem<br/>e sincronizados em todos os dispositivos</div>
       </div>
     </div>
   );
 }
-
 function App() {
+  const [firebaseReady, setFirebaseReady] = useState(!!window._vitalisReady);
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [loginLoading, setLoginLoading] = useState(false);
   const [store, setStore] = useState({});
-  const [screen, setScreen] = useState("diary");
+  const [tab, setTab] = useState("diary");
   const [openKey, setOpenKey] = useState(null);
   const [entryTab, setEntryTab] = useState("write");
   const [newHabit, setNewHabit] = useState("");
   const [saving, setSaving] = useState(false);
+  const [showLogout, setShowLogout] = useState(false);
+  const [showManage, setShowManage] = useState(false);
+  const [notifHour, setNotifHour] = useState(21);
+  const [notifEnabled, setNotifEnabled] = useState(false);
   const saveTimer = useRef(null);
   const tk = todayKey();
-
   useEffect(() => {
-    if (!window._vitalisOnAuth) return;
+    if (window._vitalisReady) { setFirebaseReady(true); return; }
+    const handler = () => setFirebaseReady(true);
+    window.addEventListener("vitalisReady", handler);
+    return () => window.removeEventListener("vitalisReady", handler);
+  }, []);
+  useEffect(() => {
+    if (!firebaseReady || !window._vitalisOnAuth) return;
     const unsub = window._vitalisOnAuth((u) => { setUser(u); setAuthLoading(false); });
     return unsub;
-  }, []);
-
+  }, [firebaseReady]);
   useEffect(() => {
     if (!user || !window._vitalisOnSnapshot) return;
     const unsub = window._vitalisOnSnapshot(user.uid, (snap) => {
@@ -154,26 +209,23 @@ function App() {
     });
     return unsub;
   }, [user]);
-
+  useEffect(() => {
+    const saved = localStorage.getItem("vitalis_notif");
+    if (saved) {
+      const { enabled, hour } = JSON.parse(saved);
+      setNotifEnabled(enabled); setNotifHour(hour);
+      if (enabled) scheduleNotification(hour);
+    }
+  }, []);
   const saveToCloud = useCallback((newStore) => {
     if (!user) return;
     clearTimeout(saveTimer.current);
     setSaving(true);
-    saveTimer.current = setTimeout(async () => {
-      await window._vitalisSetDoc(user.uid, newStore);
-      setSaving(false);
-    }, 800);
+    saveTimer.current = setTimeout(async () => { await window._vitalisSetDoc(user.uid, newStore); setSaving(false); }, 800);
   }, [user]);
-
-  function update(fn) {
-    setStore(prev => { const next = fn({...prev}); saveToCloud(next); return next; });
-  }
-
+  function update(fn) { setStore(prev => { const next = fn({...prev}); saveToCloud(next); return next; }); }
   const habits = store._habits || DEFAULT_HABITS;
-  function setHabits(fn) {
-    update(s => ({...s, _habits: typeof fn==="function" ? fn(s._habits||DEFAULT_HABITS) : fn}));
-  }
-
+  function setHabits(fn) { update(s => ({...s, _habits: typeof fn==="function" ? fn(s._habits||DEFAULT_HABITS) : fn})); }
   const entries = Object.keys(store).filter(k=>!k.startsWith("_")).sort((a,b)=>b.localeCompare(a));
   const hasTodayEntry = !!store[tk];
   const entry = openKey ? (store[openKey]||{text:"",habits:{}}) : null;
@@ -181,17 +233,10 @@ function App() {
   const checkedCount = entry ? habits.filter(h=>entry.habits?.[h.id]).length : 0;
   const total = habits.length;
   const percent = total>0 ? Math.round((checkedCount/total)*100) : 0;
-
-  function openEntry(key) { setOpenKey(key); setEntryTab("write"); setScreen("entry"); }
-  function addToday() {
-    if (!store[tk]) update(s=>({...s,[tk]:{text:"",habits:{}}}));
-    openEntry(tk);
-  }
+  function openEntry(key) { setOpenKey(key); setEntryTab("write"); }
+  function addToday() { if (!store[tk]) update(s=>({...s,[tk]:{text:"",habits:{}}})); openEntry(tk); }
   function setText(key,text) { update(s=>({...s,[key]:{...(s[key]||{habits:{}}),text}})); }
-  function toggleHabit(key,id) {
-    update(s=>{ const e=s[key]||{text:"",habits:{}}; return {...s,[key]:{...e,habits:{...e.habits,[id]:!e.habits[id]}}}; });
-  }
-
+  function toggleHabit(key,id) { update(s=>{ const e=s[key]||{text:"",habits:{}}; return {...s,[key]:{...e,habits:{...e.habits,[id]:!e.habits[id]}}}; }); }
   const last7=Array.from({length:7},(_,i)=>{
     const d=new Date(); d.setDate(d.getDate()-(6-i));
     const k=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
@@ -199,7 +244,6 @@ function App() {
     const done=habits.filter(h=>e.habits?.[h.id]).length;
     return {k,label:DAYS_FULL[d.getDay()].slice(0,3),isToday:k===tk,done,pct:total>0?done/total:0};
   });
-
   const streakCount=(()=>{
     let count=0;
     for(let i=0;i<60;i++){
@@ -212,117 +256,56 @@ function App() {
     }
     return count;
   })();
-
-  if (authLoading) return (
+  async function toggleNotifications() {
+    if (!notifEnabled) {
+      const granted = await requestNotifications();
+      if (granted) { setNotifEnabled(true); scheduleNotification(notifHour); localStorage.setItem("vitalis_notif",JSON.stringify({enabled:true,hour:notifHour})); }
+    } else { setNotifEnabled(false); localStorage.setItem("vitalis_notif",JSON.stringify({enabled:false,hour:notifHour})); }
+  }
+  const Header = ({title, onBack}) => (
+    <div style={{padding:"max(52px,env(safe-area-inset-top,0px) + 16px) 24px 16px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+      <div style={{display:"flex",alignItems:"center",gap:12}}>
+        {onBack&&<button onClick={onBack} style={{...iconBtn,width:36,height:36,fontSize:14}}>←</button>}
+        <div>
+          {!onBack&&<div style={{fontSize:10,letterSpacing:3,color:"#5a8a52",textTransform:"uppercase",marginBottom:2}}>VITALIS</div>}
+          <div className={onBack?"":"vitalis-logo"} style={{fontSize:onBack?20:28,fontWeight:onBack?700:600,color:"#c8e8c0"}}>{title}</div>
+        </div>
+      </div>
+      <div style={{display:"flex",gap:8,alignItems:"center"}}>
+        {saving&&<div style={{fontSize:10,color:"#3a5a34"}}>💾</div>}
+        {!onBack&&streakCount>0&&(
+          <div style={{background:"#1a3d14",border:"1px solid #3a6030",borderRadius:12,padding:"6px 10px",textAlign:"center"}}>
+            <div style={{fontSize:14}}>🔥</div>
+            <div style={{fontSize:9,color:"#84cc7a",fontWeight:700}}>{streakCount}d</div>
+          </div>
+        )}
+        {!onBack&&<button onClick={()=>setShowManage(true)} style={iconBtn}>⚙️</button>}
+        {!onBack&&<button onClick={()=>setShowLogout(true)} style={iconBtn}>🚪</button>}
+      </div>
+    </div>
+  );
+  if (!firebaseReady||authLoading) return (
     <div style={{...shell,alignItems:"center",justifyContent:"center"}}>
       <div style={bg}/>
       <div style={{position:"relative",zIndex:1,textAlign:"center"}}>
-        <div style={{fontSize:32,fontWeight:900,color:"#84cc7a"}}>Vitalis</div>
+        <div className="vitalis-logo" style={{fontSize:48,color:"#84cc7a"}}>Vitalis</div>
         <div style={{fontSize:13,color:"#3a5a34",marginTop:8}}>Carregando…</div>
       </div>
     </div>
   );
-
-  if (!user) return (
-    <LoginScreen loading={loginLoading} onLogin={async()=>{
-      setLoginLoading(true);
-      try { await window._vitalisSignIn(); } catch(e) { console.error(e); }
-      setLoginLoading(false);
-    }}/>
-  );
-
-  if (screen==="diary") return (
+  if (!user) return <LoginScreen loading={loginLoading} onLogin={async()=>{ setLoginLoading(true); try { await window._vitalisSignIn(); } catch(e){console.error(e);} setLoginLoading(false); }}/>;
+  if (openKey) return (
     <div style={shell}>
       <div style={bg}/>
-      <div style={{position:"relative",zIndex:1,display:"flex",flexDirection:"column",minHeight:"100vh"}}>
-        <div style={{padding:"max(52px,env(safe-area-inset-top,0px) + 16px) 24px 20px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-          <div>
-            <div style={{fontSize:11,letterSpacing:3,color:"#5a8a52",textTransform:"uppercase",marginBottom:4}}>VITALIS</div>
-            <div style={{fontSize:26,fontWeight:800,color:"#c8e8c0"}}>Diário</div>
-          </div>
-          <div style={{display:"flex",gap:8,alignItems:"center"}}>
-            {saving&&<div style={{fontSize:10,color:"#3a5a34"}}>💾</div>}
-            {streakCount>0&&(
-              <div style={{background:"#1a3d14",border:"1px solid #3a6030",borderRadius:12,padding:"8px 12px",textAlign:"center"}}>
-                <div style={{fontSize:16}}>🔥</div>
-                <div style={{fontSize:10,color:"#84cc7a",fontWeight:700}}>{streakCount}d</div>
-              </div>
-            )}
-            <button onClick={()=>setScreen("week")} style={iconBtn}>📊</button>
-            <button onClick={()=>setScreen("manage")} style={iconBtn}>⚙️</button>
-            <button onClick={()=>window._vitalisSignOut()} style={{...iconBtn,fontSize:14}}>🚪</button>
-          </div>
-        </div>
-        <div style={{padding:"0 24px 16px",display:"flex",alignItems:"center",gap:10}}>
-          {user.photoURL&&<img src={user.photoURL} style={{width:28,height:28,borderRadius:"50%",border:"1px solid #3a6030"}}/>}
-          <span style={{fontSize:13,color:"#5a8a52"}}>{user.displayName||user.email}</span>
-        </div>
-        <div style={{padding:"0 24px 20px"}}>
-          {!hasTodayEntry?(
-            <button onClick={addToday} style={{width:"100%",padding:"18px",borderRadius:18,background:"linear-gradient(135deg,#2a5220,#1a3d14)",border:"1.5px dashed #3a6030",color:"#84cc7a",fontSize:15,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:10}}>
-              <span style={{fontSize:22}}>✦</span> Adicionar entrada de hoje
-            </button>
-          ):(
-            <button onClick={()=>openEntry(tk)} style={{width:"100%",padding:"18px",borderRadius:18,background:"linear-gradient(135deg,#2a5220,#1a3d14)",border:"1.5px solid #84cc7a",color:"#84cc7a",fontSize:15,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:10}}>
-              <span style={{fontSize:20}}>📝</span> Continuar hoje
-            </button>
-          )}
-        </div>
-        <div style={{padding:"0 24px 48px",display:"flex",flexDirection:"column",gap:12,flex:1}}>
-          {entries.length===0&&(
-            <div style={{textAlign:"center",color:"#3a5a34",padding:"60px 0",fontSize:14}}>
-              Seu diário está vazio.<br/>Adicione sua primeira entrada!
-            </div>
-          )}
-          {entries.map(key=>{
-            const e=store[key]||{};
-            const done=habits.filter(h=>e.habits?.[h.id]).length;
-            const pct=total>0?Math.round(done/total*100):0;
-            const fmt=formatKeyShort(key);
-            const preview=e.text?e.text.slice(0,80)+(e.text.length>80?"…":""):null;
-            const iT=key===tk;
-            return (
-              <button key={key} onClick={()=>openEntry(key)} style={{display:"flex",gap:14,padding:"16px",borderRadius:18,border:"none",background:iT?"linear-gradient(135deg,#1e3d18,#162d12)":"rgba(255,255,255,0.03)",borderWidth:1,borderStyle:"solid",borderColor:iT?"#3a6030":"rgba(255,255,255,0.07)",cursor:"pointer",textAlign:"left",width:"100%",alignItems:"center"}}>
-                <div style={{flexShrink:0,width:48,height:56,borderRadius:14,background:iT?"#84cc7a":"#1a2d16",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}>
-                  <div style={{fontSize:10,color:iT?"#0d1a0a":"#5a8a52",fontWeight:700,textTransform:"uppercase"}}>{fmt.month}</div>
-                  <div style={{fontSize:22,fontWeight:900,color:iT?"#0d1a0a":"#84cc7a",lineHeight:1}}>{fmt.day}</div>
-                  <div style={{fontSize:9,color:iT?"#1a3d14":"#3a5a34"}}>{fmt.weekday}</div>
-                </div>
-                <div style={{flex:1,minWidth:0}}>
-                  {iT&&<div style={{fontSize:10,color:"#84cc7a",fontWeight:700,letterSpacing:1,marginBottom:2}}>HOJE</div>}
-                  {preview?<div style={{fontSize:13,color:"#b0c8a8",lineHeight:1.5,marginBottom:6}}>{preview}</div>
-                    :<div style={{fontSize:13,color:"#3a5a34",fontStyle:"italic",marginBottom:6}}>Sem texto…</div>}
-                  <div style={{display:"flex",alignItems:"center",gap:8}}>
-                    <div style={{height:4,flex:1,background:"#1a2d16",borderRadius:4,overflow:"hidden"}}>
-                      <div style={{height:"100%",width:`${pct}%`,background:pct===100?"#a8e8a0":"#84cc7a",borderRadius:4}}/>
-                    </div>
-                    <div style={{fontSize:11,color:"#5a8a52",flexShrink:0}}>{done}/{total} hábitos</div>
-                  </div>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  );
-
-  if (screen==="entry"&&entry) return (
-    <div style={shell}>
-      <div style={bg}/>
-      <div style={{position:"relative",zIndex:1,display:"flex",flexDirection:"column",minHeight:"100vh"}}>
-        <div style={{padding:"max(52px,env(safe-area-inset-top,0px) + 16px) 24px 16px"}}>
-          <button onClick={()=>setScreen("diary")} style={backBtn}>← Voltar</button>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-            <div>
-              <div style={{fontSize:11,color:"#5a8a52",letterSpacing:1}}>{isToday?"HOJE":"SOMENTE LEITURA"}</div>
-              <div style={{fontSize:16,fontWeight:700,color:"#c8e8c0",marginTop:2,lineHeight:1.3}}>{formatKeyFull(openKey)}</div>
-            </div>
-            <div style={{position:"relative"}}>
-              <RingProgress percent={percent} size={54} stroke={5}/>
-              <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
-                <span style={{fontSize:11,fontWeight:800,color:"#84cc7a"}}>{percent}%</span>
-              </div>
+      {showLogout&&<LogoutModal onConfirm={()=>{window._vitalisSignOut();setShowLogout(false);}} onCancel={()=>setShowLogout(false)}/>}
+      <div style={{position:"relative",zIndex:1,display:"flex",flexDirection:"column",minHeight:"100vh",paddingBottom:80}}>
+        <Header title={isToday?"Hoje":formatKeyFull(openKey)} onBack={()=>setOpenKey(null)}/>
+        <div style={{padding:"0 24px 8px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <div style={{fontSize:11,color:"#5a8a52"}}>{isToday?"":"🔒 Somente leitura"}</div>
+          <div style={{position:"relative"}}>
+            <RingProgress percent={percent} size={50} stroke={5}/>
+            <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
+              <span style={{fontSize:10,fontWeight:800,color:"#84cc7a"}}>{percent}%</span>
             </div>
           </div>
         </div>
@@ -332,27 +315,22 @@ function App() {
           ))}
         </div>
         {entryTab==="write"&&(
-          <div style={{flex:1,padding:"0 24px 40px"}}>
+          <div style={{flex:1,padding:"0 24px 20px"}}>
             {isToday?(
               <textarea value={entry.text||""} onChange={e=>setText(openKey,e.target.value)}
                 placeholder={"Como foi o seu dia?\n\nEscreva o quanto quiser…"}
-                style={{width:"100%",minHeight:400,background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:18,color:"#d8f0d0",fontSize:15,lineHeight:1.9,padding:"20px",resize:"none",outline:"none",boxSizing:"border-box"}}/>
+                style={{width:"100%",minHeight:380,background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:18,color:"#d8f0d0",fontSize:15,lineHeight:1.9,padding:"20px",resize:"none",outline:"none",boxSizing:"border-box"}}/>
             ):(
               <div style={{width:"100%",minHeight:200,background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:18,color:entry.text?"#b0c8a8":"#3a5a34",fontSize:15,lineHeight:1.9,padding:"20px",boxSizing:"border-box",fontStyle:entry.text?"normal":"italic",whiteSpace:"pre-wrap"}}>
                 {entry.text||"Nenhum texto foi escrito neste dia."}
               </div>
             )}
-            {!isToday&&<div style={{marginTop:12,textAlign:"center",fontSize:12,color:"#3a5a34"}}>🔒 Entradas passadas são somente leitura</div>}
-            {saving&&<div style={{marginTop:8,textAlign:"center",fontSize:11,color:"#3a5a34"}}>Salvando na nuvem…</div>}
+            {saving&&<div style={{marginTop:8,textAlign:"center",fontSize:11,color:"#3a5a34"}}>Salvando…</div>}
           </div>
         )}
         {entryTab==="habits"&&(
-          <div style={{flex:1,padding:"0 24px 40px",display:"flex",flexDirection:"column",gap:10}}>
-            {percent===100&&(
-              <div style={{background:"#1a3d14",border:"1px solid #3a6030",borderRadius:14,padding:"12px 16px",textAlign:"center",fontSize:13,color:"#84cc7a",marginBottom:4}}>
-                🎉 Dia perfeito! Todos os hábitos completos!
-              </div>
-            )}
+          <div style={{flex:1,padding:"0 24px 20px",display:"flex",flexDirection:"column",gap:10}}>
+            {percent===100&&<div style={{background:"#1a3d14",border:"1px solid #3a6030",borderRadius:14,padding:"12px 16px",textAlign:"center",fontSize:13,color:"#84cc7a",marginBottom:4}}>🎉 Dia perfeito!</div>}
             {habits.map(h=>{
               const checked=!!entry.habits?.[h.id];
               return (
@@ -365,80 +343,156 @@ function App() {
                 </button>
               );
             })}
-            {!isToday&&<div style={{textAlign:"center",fontSize:12,color:"#3a5a34",marginTop:8}}>🔒 Somente leitura</div>}
           </div>
         )}
       </div>
     </div>
   );
-
-  if (screen==="week") return (
+  if (showManage) return (
     <div style={shell}>
       <div style={bg}/>
-      <div style={{position:"relative",zIndex:1,padding:"max(52px,env(safe-area-inset-top,0px) + 16px) 24px 40px"}}>
-        <button onClick={()=>setScreen("diary")} style={backBtn}>← Voltar</button>
-        <div style={{fontSize:26,fontWeight:800,color:"#c8e8c0",marginBottom:4}}>Semana</div>
-        <div style={{fontSize:13,color:"#5a8a52",marginBottom:24}}>Progresso dos últimos 7 dias</div>
-        <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:20,padding:"24px 16px",marginBottom:20}}>
-          <div style={{display:"flex",alignItems:"flex-end",gap:6,height:150,justifyContent:"space-between"}}>
-            {last7.map(({label,isToday:iT,done,pct})=>(
-              <div key={label} style={{display:"flex",flexDirection:"column",alignItems:"center",flex:1,gap:6}}>
-                <div style={{fontSize:10,color:"#5a8a52"}}>{done>0?done:""}</div>
-                <div style={{width:"100%",maxWidth:36,height:Math.max(pct*120,pct>0?8:2),background:iT?"linear-gradient(180deg,#a8e8a0,#84cc7a)":pct>0?"linear-gradient(180deg,#3a6030,#2a4d22)":"#1a2a18",borderRadius:"8px 8px 4px 4px",border:iT?"1px solid #84cc7a":"none",transition:"height 0.6s cubic-bezier(.4,2,.6,1)"}}/>
-                <div style={{fontSize:11,color:iT?"#84cc7a":"#3a5a34",fontWeight:iT?700:400}}>{label}</div>
+      <div style={{position:"relative",zIndex:1,display:"flex",flexDirection:"column",minHeight:"100vh",paddingBottom:100}}>
+        <Header title="Configurações" onBack={()=>setShowManage(false)}/>
+        <div style={{padding:"0 24px 20px",display:"flex",alignItems:"center",gap:12}}>
+          {user.photoURL&&<img src={user.photoURL} style={{width:40,height:40,borderRadius:"50%",border:"2px solid #3a6030"}}/>}
+          <div>
+            <div style={{fontSize:14,fontWeight:600,color:"#c8e8c0"}}>{user.displayName}</div>
+            <div style={{fontSize:12,color:"#5a8a52"}}>{user.email}</div>
+          </div>
+        </div>
+        <div style={{margin:"0 24px 20px",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:18,padding:"18px"}}>
+          <div style={{fontSize:13,fontWeight:700,color:"#c8e8c0",marginBottom:4}}>🔔 Lembrete diário</div>
+          <div style={{fontSize:12,color:"#5a8a52",marginBottom:16}}>Receba uma notificação para escrever no diário</div>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
+            <span style={{fontSize:13,color:"#b0c8a8"}}>Ativar notificações</span>
+            <button onClick={toggleNotifications} style={{width:48,height:28,borderRadius:14,border:"none",cursor:"pointer",background:notifEnabled?"#84cc7a":"rgba(255,255,255,0.1)",position:"relative",transition:"all 0.2s"}}>
+              <div style={{position:"absolute",top:3,width:22,height:22,borderRadius:11,background:"white",transition:"all 0.2s",left:notifEnabled?23:3}}/>
+            </button>
+          </div>
+          {notifEnabled&&(
+            <div style={{display:"flex",alignItems:"center",gap:10}}>
+              <span style={{fontSize:13,color:"#b0c8a8"}}>Horário:</span>
+              <input type="number" min="0" max="23" value={notifHour}
+                onChange={e=>{const h=Math.max(0,Math.min(23,parseInt(e.target.value)||0));setNotifHour(h);localStorage.setItem("vitalis_notif",JSON.stringify({enabled:true,hour:h}));scheduleNotification(h);}}
+                style={{width:64,padding:"6px 10px",borderRadius:10,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",color:"#e8f0e4",fontSize:14,outline:"none",textAlign:"center"}}/>
+              <span style={{fontSize:13,color:"#5a8a52"}}>h (formato 24h)</span>
+            </div>
+          )}
+        </div>
+        <div style={{padding:"0 24px"}}>
+          <div style={{fontSize:13,fontWeight:700,color:"#c8e8c0",marginBottom:12}}>🌿 Hábitos</div>
+          <div style={{display:"flex",gap:8,marginBottom:12}}>
+            <input value={newHabit} onChange={e=>setNewHabit(e.target.value)}
+              onKeyDown={e=>{if(e.key==="Enter"){const l=newHabit.trim();if(l){setHabits(prev=>[...prev,{id:Date.now(),label:l}]);setNewHabit("");}}}}
+              placeholder="Ex: Ler 30 minutos 📚"
+              style={{flex:1,padding:"12px 14px",borderRadius:12,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",color:"#e8f0e4",fontSize:14,outline:"none"}}/>
+            <button onClick={()=>{const l=newHabit.trim();if(l){setHabits(prev=>[...prev,{id:Date.now(),label:l}]);setNewHabit("");}}}
+              style={{padding:"12px 16px",borderRadius:12,border:"none",background:"#84cc7a",color:"#0d1a0a",fontWeight:800,fontSize:18,cursor:"pointer"}}>+</button>
+          </div>
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            {habits.map(h=>(
+              <div key={h.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 14px",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:14}}>
+                <span style={{fontSize:14,color:"#b0c8a8"}}>{h.label}</span>
+                <button onClick={()=>setHabits(prev=>prev.filter(x=>x.id!==h.id))}
+                  style={{background:"rgba(255,60,60,0.1)",border:"1px solid rgba(255,60,60,0.2)",borderRadius:8,color:"#ff6b6b",padding:"4px 10px",cursor:"pointer",fontSize:12,fontWeight:600}}>Remover</button>
               </div>
             ))}
           </div>
         </div>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-          {[
-            {label:"Melhor dia",value:`${Math.round(Math.max(...last7.map(d=>d.pct))*100)}%`,icon:"🏆"},
-            {label:"Média semanal",value:`${Math.round(last7.reduce((a,d)=>a+d.pct,0)/7*100)}%`,icon:"📊"},
-            {label:"Dias ativos",value:last7.filter(d=>d.done>0).length,icon:"📅"},
-            {label:"Sequência",value:`${streakCount}🔥`,icon:""},
-          ].map(({label,value,icon})=>(
-            <div key={label} style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:16,padding:"16px"}}>
-              <div style={{fontSize:20,marginBottom:4}}>{icon}</div>
-              <div style={{fontSize:22,fontWeight:800,color:"#84cc7a"}}>{value}</div>
-              <div style={{fontSize:11,color:"#5a8a52",marginTop:2}}>{label}</div>
-            </div>
-          ))}
-        </div>
       </div>
     </div>
   );
-
-  if (screen==="manage") return (
+  return (
     <div style={shell}>
       <div style={bg}/>
-      <div style={{position:"relative",zIndex:1,padding:"max(52px,env(safe-area-inset-top,0px) + 16px) 24px 40px"}}>
-        <button onClick={()=>setScreen("diary")} style={backBtn}>← Voltar</button>
-        <div style={{fontSize:26,fontWeight:800,color:"#c8e8c0",marginBottom:4}}>Hábitos</div>
-        <div style={{fontSize:13,color:"#5a8a52",marginBottom:24}}>Personalize seus hábitos diários</div>
-        <div style={{display:"flex",gap:8,marginBottom:20}}>
-          <input value={newHabit} onChange={e=>setNewHabit(e.target.value)}
-            onKeyDown={e=>{if(e.key==="Enter"){const l=newHabit.trim();if(l){setHabits(prev=>[...prev,{id:Date.now(),label:l}]);setNewHabit("");}}}}
-            placeholder="Ex: Ler 30 minutos 📚"
-            style={{flex:1,padding:"14px 16px",borderRadius:12,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",color:"#e8f0e4",fontSize:14,outline:"none"}}/>
-          <button onClick={()=>{const l=newHabit.trim();if(l){setHabits(prev=>[...prev,{id:Date.now(),label:l}]);setNewHabit("");}}}
-            style={{padding:"14px 18px",borderRadius:12,border:"none",background:"#84cc7a",color:"#0d1a0a",fontWeight:800,fontSize:18,cursor:"pointer"}}>+</button>
+      {showLogout&&<LogoutModal onConfirm={()=>{window._vitalisSignOut();setShowLogout(false);}} onCancel={()=>setShowLogout(false)}/>}
+      <div style={{position:"relative",zIndex:1,display:"flex",flexDirection:"column",minHeight:"100vh",paddingBottom:100}}>
+        <Header title="Diário"/>
+        <div style={{padding:"0 24px 16px",display:"flex",alignItems:"center",gap:10}}>
+          {user.photoURL&&<img src={user.photoURL} style={{width:26,height:26,borderRadius:"50%",border:"1px solid #3a6030"}}/>}
+          <span style={{fontSize:13,color:"#5a8a52"}}>{user.displayName||user.email}</span>
         </div>
-        <div style={{display:"flex",flexDirection:"column",gap:8}}>
-          {habits.map(h=>(
-            <div key={h.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 16px",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:14}}>
-              <span style={{fontSize:14,color:"#b0c8a8"}}>{h.label}</span>
-              <button onClick={()=>setHabits(prev=>prev.filter(x=>x.id!==h.id))}
-                style={{background:"rgba(255,60,60,0.1)",border:"1px solid rgba(255,60,60,0.2)",borderRadius:8,color:"#ff6b6b",padding:"4px 10px",cursor:"pointer",fontSize:12,fontWeight:600}}>Remover</button>
+        {tab==="diary"&&(
+          <>
+            <div style={{padding:"0 24px 20px"}}>
+              {!hasTodayEntry?(
+                <button onClick={addToday} style={{width:"100%",padding:"18px",borderRadius:18,background:"linear-gradient(135deg,#2a5220,#1a3d14)",border:"1.5px dashed #3a6030",color:"#84cc7a",fontSize:15,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:10}}>
+                  <span style={{fontSize:22}}>✦</span> Adicionar entrada de hoje
+                </button>
+              ):(
+                <button onClick={()=>openEntry(tk)} style={{width:"100%",padding:"18px",borderRadius:18,background:"linear-gradient(135deg,#2a5220,#1a3d14)",border:"1.5px solid #84cc7a",color:"#84cc7a",fontSize:15,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:10}}>
+                  <span style={{fontSize:20}}>📝</span> Continuar hoje
+                </button>
+              )}
             </div>
-          ))}
-        </div>
+            <div style={{padding:"0 24px",display:"flex",flexDirection:"column",gap:12,flex:1}}>
+              {entries.length===0&&<div style={{textAlign:"center",color:"#3a5a34",padding:"60px 0",fontSize:14}}>Seu diário está vazio.<br/>Adicione sua primeira entrada!</div>}
+              {entries.map(key=>{
+                const e=store[key]||{};
+                const done=habits.filter(h=>e.habits?.[h.id]).length;
+                const pct=total>0?Math.round(done/total*100):0;
+                const fmt=formatKeyShort(key);
+                const preview=e.text?e.text.slice(0,80)+(e.text.length>80?"…":""):null;
+                const iT=key===tk;
+                return (
+                  <button key={key} onClick={()=>openEntry(key)} style={{display:"flex",gap:14,padding:"16px",borderRadius:18,border:"none",background:iT?"linear-gradient(135deg,#1e3d18,#162d12)":"rgba(255,255,255,0.03)",borderWidth:1,borderStyle:"solid",borderColor:iT?"#3a6030":"rgba(255,255,255,0.07)",cursor:"pointer",textAlign:"left",width:"100%",alignItems:"center"}}>
+                    <div style={{flexShrink:0,width:48,height:56,borderRadius:14,background:iT?"#84cc7a":"#1a2d16",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}>
+                      <div style={{fontSize:10,color:iT?"#0d1a0a":"#5a8a52",fontWeight:700,textTransform:"uppercase"}}>{fmt.month}</div>
+                      <div style={{fontSize:22,fontWeight:900,color:iT?"#0d1a0a":"#84cc7a",lineHeight:1}}>{fmt.day}</div>
+                      <div style={{fontSize:9,color:iT?"#1a3d14":"#3a5a34"}}>{fmt.weekday}</div>
+                    </div>
+                    <div style={{flex:1,minWidth:0}}>
+                      {iT&&<div style={{fontSize:10,color:"#84cc7a",fontWeight:700,letterSpacing:1,marginBottom:2}}>HOJE</div>}
+                      {preview?<div style={{fontSize:13,color:"#b0c8a8",lineHeight:1.5,marginBottom:6}}>{preview}</div>
+                        :<div style={{fontSize:13,color:"#3a5a34",fontStyle:"italic",marginBottom:6}}>Sem texto…</div>}
+                      <div style={{display:"flex",alignItems:"center",gap:8}}>
+                        <div style={{height:4,flex:1,background:"#1a2d16",borderRadius:4,overflow:"hidden"}}>
+                          <div style={{height:"100%",width:`${pct}%`,background:pct===100?"#a8e8a0":"#84cc7a",borderRadius:4}}/>
+                        </div>
+                        <div style={{fontSize:11,color:"#5a8a52",flexShrink:0}}>{done}/{total}</div>
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        )}
+        {tab==="week"&&(
+          <div style={{padding:"0 24px"}}>
+            <div style={{fontSize:13,color:"#5a8a52",marginBottom:20}}>Progresso dos últimos 7 dias</div>
+            <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:20,padding:"24px 16px",marginBottom:20}}>
+              <div style={{display:"flex",alignItems:"flex-end",gap:6,height:150,justifyContent:"space-between"}}>
+                {last7.map(({label,isToday:iT,done,pct})=>(
+                  <div key={label} style={{display:"flex",flexDirection:"column",alignItems:"center",flex:1,gap:6}}>
+                    <div style={{fontSize:10,color:"#5a8a52"}}>{done>0?done:""}</div>
+                    <div style={{width:"100%",maxWidth:36,height:Math.max(pct*120,pct>0?8:2),background:iT?"linear-gradient(180deg,#a8e8a0,#84cc7a)":pct>0?"linear-gradient(180deg,#3a6030,#2a4d22)":"#1a2a18",borderRadius:"8px 8px 4px 4px",border:iT?"1px solid #84cc7a":"none",transition:"height 0.6s cubic-bezier(.4,2,.6,1)"}}/>
+                    <div style={{fontSize:11,color:iT?"#84cc7a":"#3a5a34",fontWeight:iT?700:400}}>{label}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+              {[
+                {label:"Melhor dia",value:`${Math.round(Math.max(...last7.map(d=>d.pct))*100)}%`,icon:"🏆"},
+                {label:"Média semanal",value:`${Math.round(last7.reduce((a,d)=>a+d.pct,0)/7*100)}%`,icon:"📊"},
+                {label:"Dias ativos",value:last7.filter(d=>d.done>0).length,icon:"📅"},
+                {label:"Sequência",value:`${streakCount}🔥`,icon:""},
+              ].map(({label,value,icon})=>(
+                <div key={label} style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:16,padding:"16px"}}>
+                  <div style={{fontSize:20,marginBottom:4}}>{icon}</div>
+                  <div style={{fontSize:22,fontWeight:800,color:"#84cc7a"}}>{value}</div>
+                  <div style={{fontSize:11,color:"#5a8a52",marginTop:2}}>{label}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
+      <BottomNav tab={tab} setTab={setTab}/>
     </div>
   );
-
-  return null;
 }
-
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(<App/>);
 </script>
