@@ -6,6 +6,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
   <meta name="apple-mobile-web-app-title" content="Vitalis"/>
+  <meta name="theme-color" content="#0d1a0a"/>
   <link rel="apple-touch-icon" href="icon.png"/>
   <link rel="icon" type="image/png" href="icon.png"/>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
@@ -18,17 +19,48 @@
     input::placeholder,textarea::placeholder{color:#3a5a34;}
     button,input,textarea{font-family:inherit;}
     textarea{-webkit-user-select:text;user-select:text;}
-    .safe-top{padding-top:max(52px,env(safe-area-inset-top,0px) + 16px);}
   </style>
 </head>
 <body>
 <div id="root"></div>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAo8e9Yf3kduTxOrRAl1FSum5mtS4aFZK4",
+  authDomain: "vitalis-health-d22b6.firebaseapp.com",
+  projectId: "vitalis-health-d22b6",
+  storageBucket: "vitalis-health-d22b6.firebasestorage.app",
+  messagingSenderId: "928994746177",
+  appId: "1:928994746177:web:fe026c47017553817c4bc0",
+  measurementId: "G-1NDQJY04P3"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+window._vitalisAuth = auth;
+window._vitalisDb = db;
+window._vitalisGoogleProvider = new GoogleAuthProvider();
+window._vitalisSignIn = () => signInWithPopup(auth, window._vitalisGoogleProvider);
+window._vitalisSignOut = () => signOut(auth);
+window._vitalisOnAuth = (cb) => onAuthStateChanged(auth, cb);
+window._vitalisDoc = (uid) => doc(db, "users", uid);
+window._vitalisSetDoc = (uid, data) => setDoc(doc(db, "users", uid), data);
+window._vitalisOnSnapshot = (uid, cb) => onSnapshot(doc(db, "users", uid), cb);
+</script>
+
 <script type="text/babel">
-const { useState, useRef } = React;
-const STORAGE_KEY = "vitalis_v2";
+const { useState, useEffect, useRef, useCallback } = React;
+
 const DEFAULT_HABITS = [
   { id: 1, label: "Beber 3L de água 💧" },
   { id: 2, label: "Ir na academia 🏋️" },
@@ -39,30 +71,17 @@ const DEFAULT_HABITS = [
 const DAYS_FULL = ["Domingo","Segunda","Terça","Quarta","Quinta","Sexta","Sábado"];
 const MONTHS = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
 const MONTHS_SHORT = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
+
 function todayKey() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
 }
-function parseKey(key) {
-  const [y,m,d] = key.split("-").map(Number);
-  return new Date(y, m-1, d);
-}
-function formatKeyFull(key) {
-  const d = parseKey(key);
-  return `${DAYS_FULL[d.getDay()]}, ${d.getDate()} de ${MONTHS[d.getMonth()]} de ${d.getFullYear()}`;
-}
-function formatKeyShort(key) {
-  const d = parseKey(key);
-  return { day: d.getDate(), month: MONTHS_SHORT[d.getMonth()], weekday: DAYS_FULL[d.getDay()].slice(0,3) };
-}
-function load() {
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch { return {}; }
-}
-function persist(data) {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch {}
-}
-function RingProgress({ percent, size=54, stroke=5 }) {
-  const r = (size-stroke)/2, circ = 2*Math.PI*r, offset = circ-(percent/100)*circ;
+function parseKey(key) { const [y,m,d]=key.split("-").map(Number); return new Date(y,m-1,d); }
+function formatKeyFull(key) { const d=parseKey(key); return `${DAYS_FULL[d.getDay()]}, ${d.getDate()} de ${MONTHS[d.getMonth()]} de ${d.getFullYear()}`; }
+function formatKeyShort(key) { const d=parseKey(key); return {day:d.getDate(),month:MONTHS_SHORT[d.getMonth()],weekday:DAYS_FULL[d.getDay()].slice(0,3)}; }
+
+function RingProgress({percent,size=54,stroke=5}) {
+  const r=(size-stroke)/2,circ=2*Math.PI*r,offset=circ-(percent/100)*circ;
   return (
     <svg width={size} height={size} style={{transform:"rotate(-90deg)",flexShrink:0}}>
       <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="#1e2d1a" strokeWidth={stroke}/>
@@ -72,43 +91,89 @@ function RingProgress({ percent, size=54, stroke=5 }) {
     </svg>
   );
 }
-const iconBtn = {
-  background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.08)",
-  borderRadius:12, width:42, height:42, cursor:"pointer", fontSize:18,
-  display:"flex", alignItems:"center", justifyContent:"center",
-};
-const backBtn = {
-  background:"none", border:"none", color:"#5a8a52", cursor:"pointer",
-  fontSize:14, padding:0, marginBottom:20, display:"flex", alignItems:"center", gap:6
-};
-const shell = {
-  minHeight:"100vh", background:"#0d1a0a", color:"#e8f0e4",
-  fontFamily:"'DM Sans',sans-serif", maxWidth:520, margin:"0 auto",
-  display:"flex", flexDirection:"column", position:"relative",
-};
-const bg = {
-  position:"fixed", inset:0, pointerEvents:"none", zIndex:0,
-  background:"radial-gradient(ellipse at 20% 0%,#1a3d14 0%,transparent 55%),radial-gradient(ellipse at 80% 100%,#0f2a0c 0%,transparent 55%)"
-};
+
+const iconBtn={background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:12,width:42,height:42,cursor:"pointer",fontSize:18,display:"flex",alignItems:"center",justifyContent:"center"};
+const backBtn={background:"none",border:"none",color:"#5a8a52",cursor:"pointer",fontSize:14,padding:0,marginBottom:20,display:"flex",alignItems:"center",gap:6};
+const shell={minHeight:"100vh",background:"#0d1a0a",color:"#e8f0e4",fontFamily:"'DM Sans',sans-serif",maxWidth:520,margin:"0 auto",display:"flex",flexDirection:"column",position:"relative"};
+const bg={position:"fixed",inset:0,pointerEvents:"none",zIndex:0,background:"radial-gradient(ellipse at 20% 0%,#1a3d14 0%,transparent 55%),radial-gradient(ellipse at 80% 100%,#0f2a0c 0%,transparent 55%)"};
+
+function LoginScreen({onLogin, loading}) {
+  return (
+    <div style={shell}>
+      <div style={bg}/>
+      <div style={{position:"relative",zIndex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minHeight:"100vh",padding:"40px 32px",textAlign:"center"}}>
+        <div style={{fontSize:11,letterSpacing:4,color:"#5a8a52",textTransform:"uppercase",marginBottom:12}}>BEM-VINDO AO</div>
+        <div style={{fontSize:48,fontWeight:900,color:"#84cc7a",lineHeight:1,marginBottom:8}}>Vitalis</div>
+        <div style={{fontSize:15,color:"#5a8a52",marginBottom:60,lineHeight:1.6}}>Seu diário de saúde e<br/>hábitos sincronizado</div>
+        <button onClick={onLogin} disabled={loading} style={{display:"flex",alignItems:"center",gap:14,padding:"16px 28px",background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:18,cursor:"pointer",fontSize:15,fontWeight:600,color:"#e8f0e4",width:"100%",maxWidth:300,justifyContent:"center",opacity:loading?0.6:1,transition:"all 0.2s"}}>
+          {loading ? (
+            <span style={{fontSize:14,color:"#5a8a52"}}>Entrando…</span>
+          ) : (
+            <>
+              <svg width="20" height="20" viewBox="0 0 48 48">
+                <path fill="#FFC107" d="M43.6 20.1H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 7.9 3l5.7-5.7C34.3 6.5 29.4 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.6-.4-3.9z"/>
+                <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 16 19.1 12 24 12c3.1 0 5.8 1.1 7.9 3l5.7-5.7C34.3 6.5 29.4 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/>
+                <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.4 35.5 26.8 36 24 36c-5.2 0-9.6-3.3-11.3-8H6.1C9.5 35.6 16.2 44 24 44z"/>
+                <path fill="#1976D2" d="M43.6 20.1H42V20H24v8h11.3c-.8 2.2-2.3 4.1-4.2 5.4l6.2 5.2C37 38 44 33 44 24c0-1.3-.1-2.6-.4-3.9z"/>
+              </svg>
+              Entrar com Google
+            </>
+          )}
+        </button>
+        <div style={{marginTop:32,fontSize:12,color:"#3a5a34",lineHeight:1.7}}>
+          Seus dados ficam salvos na nuvem<br/>e sincronizados em todos os dispositivos
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function App() {
-  const [store, setStore] = useState(load);
+  const [user, setUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [store, setStore] = useState({});
   const [screen, setScreen] = useState("diary");
   const [openKey, setOpenKey] = useState(null);
   const [entryTab, setEntryTab] = useState("write");
   const [newHabit, setNewHabit] = useState("");
-  const habitInputRef = useRef(null);
+  const [saving, setSaving] = useState(false);
+  const saveTimer = useRef(null);
   const tk = todayKey();
-  const habits = store._habits || DEFAULT_HABITS;
-  function update(fn) {
-    setStore(prev => {
-      const next = fn({...prev});
-      persist(next);
-      return next;
+
+  useEffect(() => {
+    if (!window._vitalisOnAuth) return;
+    const unsub = window._vitalisOnAuth((u) => { setUser(u); setAuthLoading(false); });
+    return unsub;
+  }, []);
+
+  useEffect(() => {
+    if (!user || !window._vitalisOnSnapshot) return;
+    const unsub = window._vitalisOnSnapshot(user.uid, (snap) => {
+      if (snap.exists()) { setStore(snap.data()); } else { setStore({}); }
     });
+    return unsub;
+  }, [user]);
+
+  const saveToCloud = useCallback((newStore) => {
+    if (!user) return;
+    clearTimeout(saveTimer.current);
+    setSaving(true);
+    saveTimer.current = setTimeout(async () => {
+      await window._vitalisSetDoc(user.uid, newStore);
+      setSaving(false);
+    }, 800);
+  }, [user]);
+
+  function update(fn) {
+    setStore(prev => { const next = fn({...prev}); saveToCloud(next); return next; });
   }
+
+  const habits = store._habits || DEFAULT_HABITS;
   function setHabits(fn) {
     update(s => ({...s, _habits: typeof fn==="function" ? fn(s._habits||DEFAULT_HABITS) : fn}));
   }
+
   const entries = Object.keys(store).filter(k=>!k.startsWith("_")).sort((a,b)=>b.localeCompare(a));
   const hasTodayEntry = !!store[tk];
   const entry = openKey ? (store[openKey]||{text:"",habits:{}}) : null;
@@ -116,25 +181,25 @@ function App() {
   const checkedCount = entry ? habits.filter(h=>entry.habits?.[h.id]).length : 0;
   const total = habits.length;
   const percent = total>0 ? Math.round((checkedCount/total)*100) : 0;
+
   function openEntry(key) { setOpenKey(key); setEntryTab("write"); setScreen("entry"); }
   function addToday() {
     if (!store[tk]) update(s=>({...s,[tk]:{text:"",habits:{}}}));
     openEntry(tk);
   }
-  function setText(key, text) { update(s=>({...s,[key]:{...(s[key]||{habits:{}}),text}})); }
-  function toggleHabit(key, id) {
-    update(s=>{
-      const e = s[key]||{text:"",habits:{}};
-      return {...s,[key]:{...e,habits:{...e.habits,[id]:!e.habits[id]}}};
-    });
+  function setText(key,text) { update(s=>({...s,[key]:{...(s[key]||{habits:{}}),text}})); }
+  function toggleHabit(key,id) {
+    update(s=>{ const e=s[key]||{text:"",habits:{}}; return {...s,[key]:{...e,habits:{...e.habits,[id]:!e.habits[id]}}}; });
   }
-  const last7 = Array.from({length:7},(_,i)=>{
+
+  const last7=Array.from({length:7},(_,i)=>{
     const d=new Date(); d.setDate(d.getDate()-(6-i));
     const k=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
     const e=store[k]||{};
     const done=habits.filter(h=>e.habits?.[h.id]).length;
     return {k,label:DAYS_FULL[d.getDay()].slice(0,3),isToday:k===tk,done,pct:total>0?done/total:0};
   });
+
   const streakCount=(()=>{
     let count=0;
     for(let i=0;i<60;i++){
@@ -147,16 +212,36 @@ function App() {
     }
     return count;
   })();
+
+  if (authLoading) return (
+    <div style={{...shell,alignItems:"center",justifyContent:"center"}}>
+      <div style={bg}/>
+      <div style={{position:"relative",zIndex:1,textAlign:"center"}}>
+        <div style={{fontSize:32,fontWeight:900,color:"#84cc7a"}}>Vitalis</div>
+        <div style={{fontSize:13,color:"#3a5a34",marginTop:8}}>Carregando…</div>
+      </div>
+    </div>
+  );
+
+  if (!user) return (
+    <LoginScreen loading={loginLoading} onLogin={async()=>{
+      setLoginLoading(true);
+      try { await window._vitalisSignIn(); } catch(e) { console.error(e); }
+      setLoginLoading(false);
+    }}/>
+  );
+
   if (screen==="diary") return (
     <div style={shell}>
       <div style={bg}/>
       <div style={{position:"relative",zIndex:1,display:"flex",flexDirection:"column",minHeight:"100vh"}}>
-        <div style={{padding:"max(52px, env(safe-area-inset-top, 0px) + 16px) 24px 20px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <div style={{padding:"max(52px,env(safe-area-inset-top,0px) + 16px) 24px 20px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <div>
             <div style={{fontSize:11,letterSpacing:3,color:"#5a8a52",textTransform:"uppercase",marginBottom:4}}>VITALIS</div>
             <div style={{fontSize:26,fontWeight:800,color:"#c8e8c0"}}>Diário</div>
           </div>
           <div style={{display:"flex",gap:8,alignItems:"center"}}>
+            {saving&&<div style={{fontSize:10,color:"#3a5a34"}}>💾</div>}
             {streakCount>0&&(
               <div style={{background:"#1a3d14",border:"1px solid #3a6030",borderRadius:12,padding:"8px 12px",textAlign:"center"}}>
                 <div style={{fontSize:16}}>🔥</div>
@@ -165,14 +250,19 @@ function App() {
             )}
             <button onClick={()=>setScreen("week")} style={iconBtn}>📊</button>
             <button onClick={()=>setScreen("manage")} style={iconBtn}>⚙️</button>
+            <button onClick={()=>window._vitalisSignOut()} style={{...iconBtn,fontSize:14}}>🚪</button>
           </div>
         </div>
+        <div style={{padding:"0 24px 16px",display:"flex",alignItems:"center",gap:10}}>
+          {user.photoURL&&<img src={user.photoURL} style={{width:28,height:28,borderRadius:"50%",border:"1px solid #3a6030"}}/>}
+          <span style={{fontSize:13,color:"#5a8a52"}}>{user.displayName||user.email}</span>
+        </div>
         <div style={{padding:"0 24px 20px"}}>
-          {!hasTodayEntry ? (
+          {!hasTodayEntry?(
             <button onClick={addToday} style={{width:"100%",padding:"18px",borderRadius:18,background:"linear-gradient(135deg,#2a5220,#1a3d14)",border:"1.5px dashed #3a6030",color:"#84cc7a",fontSize:15,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:10}}>
               <span style={{fontSize:22}}>✦</span> Adicionar entrada de hoje
             </button>
-          ) : (
+          ):(
             <button onClick={()=>openEntry(tk)} style={{width:"100%",padding:"18px",borderRadius:18,background:"linear-gradient(135deg,#2a5220,#1a3d14)",border:"1.5px solid #84cc7a",color:"#84cc7a",fontSize:15,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:10}}>
               <span style={{fontSize:20}}>📝</span> Continuar hoje
             </button>
@@ -200,10 +290,8 @@ function App() {
                 </div>
                 <div style={{flex:1,minWidth:0}}>
                   {iT&&<div style={{fontSize:10,color:"#84cc7a",fontWeight:700,letterSpacing:1,marginBottom:2}}>HOJE</div>}
-                  {preview
-                    ?<div style={{fontSize:13,color:"#b0c8a8",lineHeight:1.5,marginBottom:6}}>{preview}</div>
-                    :<div style={{fontSize:13,color:"#3a5a34",fontStyle:"italic",marginBottom:6}}>Sem texto…</div>
-                  }
+                  {preview?<div style={{fontSize:13,color:"#b0c8a8",lineHeight:1.5,marginBottom:6}}>{preview}</div>
+                    :<div style={{fontSize:13,color:"#3a5a34",fontStyle:"italic",marginBottom:6}}>Sem texto…</div>}
                   <div style={{display:"flex",alignItems:"center",gap:8}}>
                     <div style={{height:4,flex:1,background:"#1a2d16",borderRadius:4,overflow:"hidden"}}>
                       <div style={{height:"100%",width:`${pct}%`,background:pct===100?"#a8e8a0":"#84cc7a",borderRadius:4}}/>
@@ -218,11 +306,12 @@ function App() {
       </div>
     </div>
   );
+
   if (screen==="entry"&&entry) return (
     <div style={shell}>
       <div style={bg}/>
       <div style={{position:"relative",zIndex:1,display:"flex",flexDirection:"column",minHeight:"100vh"}}>
-        <div style={{padding:"max(52px, env(safe-area-inset-top, 0px) + 16px) 24px 16px"}}>
+        <div style={{padding:"max(52px,env(safe-area-inset-top,0px) + 16px) 24px 16px"}}>
           <button onClick={()=>setScreen("diary")} style={backBtn}>← Voltar</button>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
             <div>
@@ -254,6 +343,7 @@ function App() {
               </div>
             )}
             {!isToday&&<div style={{marginTop:12,textAlign:"center",fontSize:12,color:"#3a5a34"}}>🔒 Entradas passadas são somente leitura</div>}
+            {saving&&<div style={{marginTop:8,textAlign:"center",fontSize:11,color:"#3a5a34"}}>Salvando na nuvem…</div>}
           </div>
         )}
         {entryTab==="habits"&&(
@@ -281,10 +371,11 @@ function App() {
       </div>
     </div>
   );
+
   if (screen==="week") return (
     <div style={shell}>
       <div style={bg}/>
-      <div style={{position:"relative",zIndex:1,padding:"max(52px, env(safe-area-inset-top, 0px) + 16px) 24px 40px"}}>
+      <div style={{position:"relative",zIndex:1,padding:"max(52px,env(safe-area-inset-top,0px) + 16px) 24px 40px"}}>
         <button onClick={()=>setScreen("diary")} style={backBtn}>← Voltar</button>
         <div style={{fontSize:26,fontWeight:800,color:"#c8e8c0",marginBottom:4}}>Semana</div>
         <div style={{fontSize:13,color:"#5a8a52",marginBottom:24}}>Progresso dos últimos 7 dias</div>
@@ -316,15 +407,16 @@ function App() {
       </div>
     </div>
   );
+
   if (screen==="manage") return (
     <div style={shell}>
       <div style={bg}/>
-      <div style={{position:"relative",zIndex:1,padding:"max(52px, env(safe-area-inset-top, 0px) + 16px) 24px 40px"}}>
+      <div style={{position:"relative",zIndex:1,padding:"max(52px,env(safe-area-inset-top,0px) + 16px) 24px 40px"}}>
         <button onClick={()=>setScreen("diary")} style={backBtn}>← Voltar</button>
         <div style={{fontSize:26,fontWeight:800,color:"#c8e8c0",marginBottom:4}}>Hábitos</div>
         <div style={{fontSize:13,color:"#5a8a52",marginBottom:24}}>Personalize seus hábitos diários</div>
         <div style={{display:"flex",gap:8,marginBottom:20}}>
-          <input ref={habitInputRef} value={newHabit} onChange={e=>setNewHabit(e.target.value)}
+          <input value={newHabit} onChange={e=>setNewHabit(e.target.value)}
             onKeyDown={e=>{if(e.key==="Enter"){const l=newHabit.trim();if(l){setHabits(prev=>[...prev,{id:Date.now(),label:l}]);setNewHabit("");}}}}
             placeholder="Ex: Ler 30 minutos 📚"
             style={{flex:1,padding:"14px 16px",borderRadius:12,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",color:"#e8f0e4",fontSize:14,outline:"none"}}/>
@@ -343,8 +435,10 @@ function App() {
       </div>
     </div>
   );
+
   return null;
 }
+
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(<App/>);
 </script>
