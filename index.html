@@ -133,8 +133,8 @@ async function generateSummary(text) {
     body: JSON.stringify({ text })
   });
   const data = await response.json();
-  if (data.error) return `• Erro: ${data.error}`;
-  return data.content || "• Sem conteúdo na resposta";
+  if (data.content) return data.content;
+  return "• Erro: " + data.debug;
 }
 
 function RingProgress({percent,size=54,stroke=5}) {
