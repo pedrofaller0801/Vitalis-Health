@@ -17,7 +17,6 @@
     html,body{height:100%;background:#0d1a0a;overflow-x:hidden;}
     body{font-family:'DM Sans',sans-serif;color:#e8f0e4;}
     #root{min-height:100vh;}
-    #splash{position:fixed;inset:0;background:#0d1a0a;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;}
     input::placeholder,textarea::placeholder{color:#3a5a34;}
     button,input,textarea{font-family:inherit;}
     textarea{-webkit-user-select:text;user-select:text;}
@@ -34,52 +33,34 @@
     .title-input::placeholder{color:#3a5a34;}
     @keyframes pulse-ring{0%{transform:scale(1);opacity:1}50%{transform:scale(1.15);opacity:0.7}100%{transform:scale(1);opacity:1}}
     .recording-pulse{animation:pulse-ring 1s ease-in-out infinite;}
-    @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
-    .spinning{animation:spin 1s linear infinite;}
   </style>
 </head>
 <body>
-
-<!-- Splash shown immediately while JS loads -->
-
-<div id="splash">
-  <div style="font-family:'Cormorant Garamond',serif;font-size:52px;color:#84cc7a;letter-spacing:2px;">Vitalis</div>
-  <div style="font-size:13px;color:#3a5a34;margin-top:12px;">Carregando…</div>
-</div>
-
 <div id="root"></div>
 
-<!-- Load Firebase async so it doesn't block rendering -->
-
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js" async onload="window._fbAppLoaded=true;window._checkFirebase&&window._checkFirebase()"></script>
-
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js" async onload="window._fbAuthLoaded=true;window._checkFirebase&&window._checkFirebase()"></script>
-
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js" async onload="window._fbFsLoaded=true;window._checkFirebase&&window._checkFirebase()"></script>
-
-<script>
-window._checkFirebase = function() {
-  if (!window._fbAppLoaded || !window._fbAuthLoaded || !window._fbFsLoaded) return;
-  const firebaseConfig = {
-    apiKey: "AIzaSyAo8e9Yf3kduTxOrRAl1FSum5mtS4aFZK4",
-    authDomain: "vitalis-health-d22b6.firebaseapp.com",
-    projectId: "vitalis-health-d22b6",
-    storageBucket: "vitalis-health-d22b6.firebasestorage.app",
-    messagingSenderId: "928994746177",
-    appId: "1:928994746177:web:fe026c47017553817c4bc0",
-    measurementId: "G-1NDQJY04P3"
-  };
-  firebase.initializeApp(firebaseConfig);
-  const _auth = firebase.auth();
-  const _db = firebase.firestore();
-  window._vitalisSignIn = () => _auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
-  window._vitalisSignOut = () => _auth.signOut();
-  window._vitalisOnAuth = (cb) => _auth.onAuthStateChanged(cb);
-  window._vitalisSetDoc = (uid, data) => _db.collection("users").doc(uid).set(data);
-  window._vitalisOnSnapshot = (uid, cb) => _db.collection("users").doc(uid).onSnapshot(cb);
-  window._vitalisReady = true;
-  window.dispatchEvent(new Event("vitalisReady"));
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+const firebaseConfig = {
+  apiKey: "AIzaSyAo8e9Yf3kduTxOrRAl1FSum5mtS4aFZK4",
+  authDomain: "vitalis-health-d22b6.firebaseapp.com",
+  projectId: "vitalis-health-d22b6",
+  storageBucket: "vitalis-health-d22b6.firebasestorage.app",
+  messagingSenderId: "928994746177",
+  appId: "1:928994746177:web:fe026c47017553817c4bc0",
+  measurementId: "G-1NDQJY04P3"
 };
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+window._vitalisSignIn = () => signInWithPopup(auth, new GoogleAuthProvider());
+window._vitalisSignOut = () => signOut(auth);
+window._vitalisOnAuth = (cb) => onAuthStateChanged(auth, cb);
+window._vitalisSetDoc = (uid, data) => setDoc(doc(db, "users", uid), data);
+window._vitalisOnSnapshot = (uid, cb) => onSnapshot(doc(db, "users", uid), cb);
+window._vitalisReady = true;
+window.dispatchEvent(new Event("vitalisReady"));
 </script>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
@@ -128,7 +109,6 @@ async function requestNotifications() {
   return (await Notification.requestPermission())==="granted";
 }
 
-
 function RingProgress({percent,size=54,stroke=5}) {
   const r=(size-stroke)/2,circ=2*Math.PI*r,offset=circ-(percent/100)*circ;
   return (
@@ -140,10 +120,6 @@ function RingProgress({percent,size=54,stroke=5}) {
     </svg>
   );
 }
-
-const iconBtn={background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:12,width:40,height:40,cursor:"pointer",fontSize:16,display:"flex",alignItems:"center",justifyContent:"center"};
-const shell={minHeight:"100vh",background:"#0d1a0a",color:"#e8f0e4",fontFamily:"'DM Sans',sans-serif",maxWidth:520,margin:"0 auto",display:"flex",flexDirection:"column",position:"relative"};
-const bg={position:"fixed",inset:0,pointerEvents:"none",zIndex:0,background:"radial-gradient(ellipse at 20% 0%,#1a3d14 0%,transparent 55%),radial-gradient(ellipse at 80% 100%,#0f2a0c 0%,transparent 55%)"};
 
 function VoiceRecorder({ onTranscript }) {
   const [isRecording, setIsRecording] = useState(false);
@@ -173,9 +149,7 @@ function VoiceRecorder({ onTranscript }) {
   }
 
   return (
-    <button
-      onClick={toggleRecording}
-      className={isRecording?"recording-pulse":""}
+    <button onClick={toggleRecording} className={isRecording?"recording-pulse":""}
       style={{width:44,height:44,borderRadius:12,border:"none",cursor:"pointer",background:isRecording?"linear-gradient(135deg,#3d1a1a,#2a0f0f)":"rgba(255,255,255,0.06)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,boxShadow:isRecording?"0 0 0 3px rgba(255,80,80,0.3)":"none",transition:"all 0.2s"}}
       title={isRecording?"Clique para parar":"Clique para gravar"}
     >
@@ -192,24 +166,9 @@ function VoiceRecorder({ onTranscript }) {
   );
 }
 
-  return (
-    <div style={{marginTop:12}}>
-      <button onClick={handleSummary} disabled={loading} style={{display:"flex",alignItems:"center",gap:8,padding:"10px 16px",borderRadius:12,border:"1px solid rgba(132,204,122,0.2)",background:"rgba(132,204,122,0.06)",color:"#84cc7a",fontSize:13,fontWeight:600,cursor:"pointer",transition:"all 0.2s",opacity:loading?0.7:1}}>
-        {loading ? <svg className="spinning" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
-          : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>}
-        {loading ? "Gerando resumo…" : shown ? "Ocultar resumo" : "✨ Resumo com IA"}
-      </button>
-      {shown && summary && (
-        <div style={{marginTop:10,background:"rgba(132,204,122,0.05)",border:"1px solid rgba(132,204,122,0.15)",borderRadius:14,padding:"14px 16px"}}>
-          <div style={{fontSize:11,color:"#5a8a52",fontWeight:700,letterSpacing:1,marginBottom:8,textTransform:"uppercase"}}>Resumo do dia</div>
-          {summary.split("\n").filter(l=>l.trim()).map((line,i)=>(
-            <div key={i} style={{fontSize:13,color:"#b0c8a8",lineHeight:1.7,marginBottom:4}}>{line}</div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
+const iconBtn={background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:12,width:40,height:40,cursor:"pointer",fontSize:16,display:"flex",alignItems:"center",justifyContent:"center"};
+const shell={minHeight:"100vh",background:"#0d1a0a",color:"#e8f0e4",fontFamily:"'DM Sans',sans-serif",maxWidth:520,margin:"0 auto",display:"flex",flexDirection:"column",position:"relative"};
+const bg={position:"fixed",inset:0,pointerEvents:"none",zIndex:0,background:"radial-gradient(ellipse at 20% 0%,#1a3d14 0%,transparent 55%),radial-gradient(ellipse at 80% 100%,#0f2a0c 0%,transparent 55%)"};
 
 function LogoutModal({onConfirm,onCancel}) {
   return (
@@ -277,6 +236,7 @@ function LoginScreen({onLogin,loading}) {
 }
 
 function App() {
+  const [firebaseReady,setFirebaseReady]=useState(!!window._vitalisReady);
   const [user,setUser]=useState(null);
   const [authLoading,setAuthLoading]=useState(true);
   const [loginLoading,setLoginLoading]=useState(false);
@@ -294,34 +254,18 @@ function App() {
   const tk=todayKey();
 
   useEffect(()=>{
-    const splash = document.getElementById("splash");
-    if(splash) splash.style.display = "none";
-
-    const timeout = setTimeout(() => { setAuthLoading(false); }, 8000);
-
-    function initAuth() {
-      if (!window._vitalisOnAuth) return;
-      clearTimeout(timeout);
-      try {
-        const unsub = window._vitalisOnAuth(u=>{
-          setUser(u);
-          setAuthLoading(false);
-        });
-        return unsub;
-      } catch(e) { setAuthLoading(false); }
-    }
-
-    if (window._vitalisReady) {
-      const unsub = initAuth();
-      return () => { try { unsub && unsub(); } catch(e){} };
-    } else {
-      const handler = () => { const unsub = initAuth(); };
-      window.addEventListener("vitalisReady", handler);
-      return () => { clearTimeout(timeout); window.removeEventListener("vitalisReady", handler); };
-    }
+    if(window._vitalisReady){setFirebaseReady(true);return;}
+    const h=()=>setFirebaseReady(true);
+    window.addEventListener("vitalisReady",h);
+    return ()=>window.removeEventListener("vitalisReady",h);
   },[]);
 
-  useEffect(()=>{ if(!user) return; return window._vitalisOnSnapshot(user.uid,snap=>{ if(snap.exists()){setStore(snap.data());}else{setStore({});} }); },[user]);
+  useEffect(()=>{
+    if(!firebaseReady||!window._vitalisOnAuth) return;
+    return window._vitalisOnAuth(u=>{setUser(u);setAuthLoading(false);});
+  },[firebaseReady]);
+
+  useEffect(()=>{ if(!user||!window._vitalisOnSnapshot) return; return window._vitalisOnSnapshot(user.uid,snap=>{ if(snap.exists()){setStore(snap.data());}else{setStore({});} }); },[user]);
   useEffect(()=>{ const saved=localStorage.getItem("vitalis_notif"); if(saved){const{enabled,hour}=JSON.parse(saved);setNotifEnabled(enabled);setNotifHour(hour);if(enabled)scheduleNotification(hour);} },[]);
 
   const saveToCloud=useCallback(newStore=>{ if(!user) return; clearTimeout(saveTimer.current); setSaving(true); saveTimer.current=setTimeout(async()=>{await window._vitalisSetDoc(user.uid,newStore);setSaving(false);},800); },[user]);
@@ -367,7 +311,16 @@ function App() {
     </div>
   );
 
-  if(authLoading) return null; // splash still showing
+  if(!firebaseReady||authLoading) return (
+    <div style={{...shell,alignItems:"center",justifyContent:"center"}}>
+      <div style={bg}/>
+      <div style={{position:"relative",zIndex:1,textAlign:"center"}}>
+        <div className="vitalis-logo" style={{fontSize:48,color:"#84cc7a"}}>Vitalis</div>
+        <div style={{fontSize:13,color:"#3a5a34",marginTop:8}}>Carregando…</div>
+      </div>
+    </div>
+  );
+
   if(!user) return <LoginScreen loading={loginLoading} onLogin={async()=>{setLoginLoading(true);try{await window._vitalisSignIn();}catch(e){console.error(e);}setLoginLoading(false);}}/>;
 
   if(openKey) return (
@@ -389,27 +342,29 @@ function App() {
             <button key={t} onClick={()=>setEntryTab(t)} style={{flex:1,padding:"9px 4px",borderRadius:12,border:"none",background:entryTab===t?"#84cc7a":"rgba(255,255,255,0.04)",color:entryTab===t?"#0d1a0a":"#5a8a52",fontWeight:700,fontSize:12,cursor:"pointer",transition:"all 0.2s"}}>{label}</button>
           ))}
         </div>
+
         {entryTab==="write"&&(
           <div style={{flex:1,padding:"0 24px 20px"}}>
             {isToday?(
               <>
                 <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
                   <VoiceRecorder onTranscript={handleTranscript}/>
-                  <div style={{fontSize:11,color:"#3a5a34",flex:1}}>{entry.text?`${entry.text.length} caracteres`:"Segure 🎙️ para falar"}</div>
+                  <div style={{fontSize:11,color:"#3a5a34",flex:1}}>{entry.text?`${entry.text.length} caracteres`:"Clique no 🎙️ para falar"}</div>
                 </div>
-                <textarea value={entry.text||""} onChange={e=>setText(openKey,e.target.value)} placeholder={"Como foi o seu dia?\n\nEscreva ou use o microfone acima…"} style={{width:"100%",minHeight:300,background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:18,color:"#d8f0d0",fontSize:15,lineHeight:1.9,padding:"20px",resize:"none",outline:"none",boxSizing:"border-box"}}/>
-                
+                <textarea value={entry.text||""} onChange={e=>setText(openKey,e.target.value)}
+                  placeholder={"Como foi o seu dia?\n\nEscreva ou use o microfone acima…"}
+                  style={{width:"100%",minHeight:320,background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:18,color:"#d8f0d0",fontSize:15,lineHeight:1.9,padding:"20px",resize:"none",outline:"none",boxSizing:"border-box"}}/>
               </>
             ):(
               <>
                 <div style={{width:"100%",minHeight:200,background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:18,color:entry.text?"#b0c8a8":"#3a5a34",fontSize:15,lineHeight:1.9,padding:"20px",boxSizing:"border-box",fontStyle:entry.text?"normal":"italic",whiteSpace:"pre-wrap"}}>{entry.text||"Nenhum texto foi escrito neste dia."}</div>
-                
                 <div style={{marginTop:12,textAlign:"center",fontSize:12,color:"#3a5a34"}}>🔒 Somente leitura</div>
               </>
             )}
             {saving&&<div style={{marginTop:8,textAlign:"center",fontSize:11,color:"#3a5a34"}}>Salvando…</div>}
           </div>
         )}
+
         {entryTab==="emotions"&&(
           <div style={{flex:1,padding:"0 24px 20px"}}>
             <div style={{fontSize:13,color:"#5a8a52",marginBottom:16,lineHeight:1.6}}>{isToday?"Como você se sentiu hoje? Selecione quantas quiser.":"Emoções registradas neste dia."}</div>
@@ -420,6 +375,7 @@ function App() {
             {!isToday&&<div style={{marginTop:16,textAlign:"center",fontSize:12,color:"#3a5a34"}}>🔒 Somente leitura</div>}
           </div>
         )}
+
         {entryTab==="habits"&&(
           <div style={{flex:1,padding:"0 24px 20px",display:"flex",flexDirection:"column",gap:10}}>
             {percent===100&&<div style={{background:"#1a3d14",border:"1px solid #3a6030",borderRadius:14,padding:"12px 16px",textAlign:"center",fontSize:13,color:"#84cc7a",marginBottom:4}}>🎉 Dia perfeito!</div>}
