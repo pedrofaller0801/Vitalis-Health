@@ -296,8 +296,15 @@ function App() {
     const splash = document.getElementById("splash");
     if(splash) splash.style.display = "none";
 
-    const unsub = window._vitalisOnAuth(u=>{ setUser(u); setAuthLoading(false); });
-    return unsub;
+    // Timeout fallback in case Firebase auth hangs
+    const timeout = setTimeout(() => { setAuthLoading(false); }, 5000);
+
+    const unsub = window._vitalisOnAuth(u=>{
+      clearTimeout(timeout);
+      setUser(u);
+      setAuthLoading(false);
+    });
+    return () => { clearTimeout(timeout); unsub && unsub(); };
   },[]);
 
   useEffect(()=>{ if(!user) return; return window._vitalisOnSnapshot(user.uid,snap=>{ if(snap.exists()){setStore(snap.data());}else{setStore({});} }); },[user]);
