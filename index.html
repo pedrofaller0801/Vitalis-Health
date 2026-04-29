@@ -292,19 +292,30 @@ function App() {
   const tk=todayKey();
 
   useEffect(()=>{
-    // Hide splash once React is running
     const splash = document.getElementById("splash");
     if(splash) splash.style.display = "none";
 
-    // Timeout fallback in case Firebase auth hangs
-    const timeout = setTimeout(() => { setAuthLoading(false); }, 5000);
-
-    const unsub = window._vitalisOnAuth(u=>{
-      clearTimeout(timeout);
-      setUser(u);
+    // If Firebase functions not available, go straight to login
+    if (!window._vitalisOnAuth) {
       setAuthLoading(false);
-    });
-    return () => { clearTimeout(timeout); unsub && unsub(); };
+      return;
+    }
+
+    const timeout = setTimeout(() => {
+      setAuthLoading(false);
+    }, 4000);
+
+    try {
+      const unsub = window._vitalisOnAuth(u=>{
+        clearTimeout(timeout);
+        setUser(u);
+        setAuthLoading(false);
+      });
+      return () => { clearTimeout(timeout); try { unsub && unsub(); } catch(e){} };
+    } catch(e) {
+      clearTimeout(timeout);
+      setAuthLoading(false);
+    }
   },[]);
 
   useEffect(()=>{ if(!user) return; return window._vitalisOnSnapshot(user.uid,snap=>{ if(snap.exists()){setStore(snap.data());}else{setStore({});} }); },[user]);
