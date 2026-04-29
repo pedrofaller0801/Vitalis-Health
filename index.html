@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8"/>
@@ -30,6 +31,10 @@
     .emotion-tag.selected{background:linear-gradient(135deg,rgba(132,204,122,0.2),rgba(132,204,122,0.1));border-color:rgba(132,204,122,0.4);color:#84cc7a;}
     .title-input{background:transparent;border:none;outline:none;color:#c8e8c0;font-size:16px;font-weight:700;font-family:'DM Sans',sans-serif;width:100%;min-width:0;}
     .title-input::placeholder{color:#3a5a34;}
+    @keyframes pulse-ring{0%{transform:scale(1);opacity:1}50%{transform:scale(1.15);opacity:0.7}100%{transform:scale(1);opacity:1}}
+    .recording-pulse{animation:pulse-ring 1s ease-in-out infinite;}
+    @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+    .spinning{animation:spin 1s linear infinite;}
   </style>
 </head>
 <body>
@@ -63,323 +68,540 @@ window.dispatchEvent(new Event("vitalisReady"));
 </script>
 <script type="text/babel">
 const { useState, useEffect, useRef, useCallback } = React;
+
 const DEFAULT_HABITS = [
-  { id: 1, label: "Beber 3L de água 💧" },
-  { id: 2, label: "Ir na academia 🏋️" },
-  { id: 3, label: "Dormir 8h 😴" },
-  { id: 4, label: "Meditar 10min 🧘" },
-  { id: 5, label: "Comer saudável 🥗" },
+{ id: 1, label: “Beber 3L de água 💧” },
+{ id: 2, label: “Ir na academia 🏋️” },
+{ id: 3, label: “Dormir 8h 😴” },
+{ id: 4, label: “Meditar 10min 🧘” },
+{ id: 5, label: “Comer saudável 🥗” },
 ];
 const EMOTIONS = [
-  "Feliz","Motivado","Tranquilo","Grato",
-  "Ansioso","Triste","Cansado","Frustrado",
-  "Animado","Neutro","Saudade","Produtivo",
+“😊 Feliz”,“😤 Motivado”,“😌 Tranquilo”,“🥰 Grato”,
+“😟 Ansioso”,“😔 Triste”,“😴 Cansado”,“😠 Frustrado”,
+“🤩 Animado”,“😶 Neutro”,“🥺 Saudoso”,“💪 Produtivo”,
 ];
-const DAYS_FULL = ["Domingo","Segunda","Terça","Quarta","Quinta","Sexta","Sábado"];
-const MONTHS = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
-const MONTHS_SHORT = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
+const DAYS_FULL = [“Domingo”,“Segunda”,“Terça”,“Quarta”,“Quinta”,“Sexta”,“Sábado”];
+const MONTHS = [“Janeiro”,“Fevereiro”,“Março”,“Abril”,“Maio”,“Junho”,“Julho”,“Agosto”,“Setembro”,“Outubro”,“Novembro”,“Dezembro”];
+const MONTHS_SHORT = [“Jan”,“Fev”,“Mar”,“Abr”,“Mai”,“Jun”,“Jul”,“Ago”,“Set”,“Out”,“Nov”,“Dez”];
+
 function todayKey() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+const d = new Date();
+return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
 }
-function parseKey(key) { const [y,m,d]=key.split("-").map(Number); return new Date(y,m-1,d); }
+function parseKey(key) { const [y,m,d]=key.split(”-”).map(Number); return new Date(y,m-1,d); }
 function formatKeyFull(key) { const d=parseKey(key); return `${DAYS_FULL[d.getDay()]}, ${d.getDate()} de ${MONTHS[d.getMonth()]} de ${d.getFullYear()}`; }
 function formatKeyShort(key) { const d=parseKey(key); return {day:d.getDate(),month:MONTHS_SHORT[d.getMonth()],weekday:DAYS_FULL[d.getDay()].slice(0,3)}; }
+
 function scheduleNotification(hour=21,minute=0) {
-  if(!("Notification" in window)||Notification.permission!=="granted") return;
-  const now=new Date(),target=new Date();
-  target.setHours(hour,minute,0,0);
-  if(target<=now) target.setDate(target.getDate()+1);
-  setTimeout(()=>{ new Notification("Vitalis 🌿",{body:"Não se esqueça de escrever no seu diário hoje!",icon:"/icon.png"}); scheduleNotification(hour,minute); },target-now);
+if(!(“Notification” in window)||Notification.permission!==“granted”) return;
+const now=new Date(),target=new Date();
+target.setHours(hour,minute,0,0);
+if(target<=now) target.setDate(target.getDate()+1);
+setTimeout(()=>{ new Notification(“Vitalis 🌿”,{body:“Não se esqueça de escrever no seu diário hoje!”,icon:”/icon.png”}); scheduleNotification(hour,minute); },target-now);
 }
 async function requestNotifications() {
-  if(!("Notification" in window)) return false;
-  if(Notification.permission==="granted") return true;
-  return (await Notification.requestPermission())==="granted";
+if(!(“Notification” in window)) return false;
+if(Notification.permission===“granted”) return true;
+return (await Notification.requestPermission())===“granted”;
 }
+
+// AI Summary via Claude API
+async function generateSummary(text) {
+const response = await fetch(“https://api.anthropic.com/v1/messages”, {
+method: “POST”,
+headers: { “Content-Type”: “application/json” },
+body: JSON.stringify({
+model: “claude-sonnet-4-20250514”,
+max_tokens: 1000,
+messages: [{
+role: “user”,
+content: `Leia esta entrada de diário e gere um resumo em bullet points com os pontos principais do dia. Seja conciso e empático. Responda APENAS os bullet points em português, sem introdução ou conclusão. Use • como marcador.\n\nEntrada:\n${text}`
+}]
+})
+});
+const data = await response.json();
+return data.content?.[0]?.text || “”;
+}
+
 function RingProgress({percent,size=54,stroke=5}) {
-  const r=(size-stroke)/2,circ=2*Math.PI*r,offset=circ-(percent/100)*circ;
-  return (
-    <svg width={size} height={size} style={{transform:"rotate(-90deg)",flexShrink:0}}>
-      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="#1e2d1a" strokeWidth={stroke}/>
-      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={percent===100?"#a8e8a0":"#84cc7a"}
-        strokeWidth={stroke} strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round"
-        style={{transition:"stroke-dashoffset 0.6s cubic-bezier(.4,2,.6,1)"}}/>
-    </svg>
-  );
+const r=(size-stroke)/2,circ=2*Math.PI*r,offset=circ-(percent/100)*circ;
+return (
+<svg width={size} height={size} style={{transform:“rotate(-90deg)”,flexShrink:0}}>
+<circle cx={size/2} cy={size/2} r={r} fill="none" stroke="#1e2d1a" strokeWidth={stroke}/>
+<circle cx={size/2} cy={size/2} r={r} fill=“none” stroke={percent===100?”#a8e8a0”:”#84cc7a”}
+strokeWidth={stroke} strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap=“round”
+style={{transition:“stroke-dashoffset 0.6s cubic-bezier(.4,2,.6,1)”}}/>
+</svg>
+);
 }
-const iconBtn={background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:12,width:40,height:40,cursor:"pointer",fontSize:16,display:"flex",alignItems:"center",justifyContent:"center"};
-const shell={minHeight:"100vh",background:"#0d1a0a",color:"#e8f0e4",fontFamily:"'DM Sans',sans-serif",maxWidth:520,margin:"0 auto",display:"flex",flexDirection:"column",position:"relative"};
-const bg={position:"fixed",inset:0,pointerEvents:"none",zIndex:0,background:"radial-gradient(ellipse at 20% 0%,#1a3d14 0%,transparent 55%),radial-gradient(ellipse at 80% 100%,#0f2a0c 0%,transparent 55%)"};
+
+const iconBtn={background:“rgba(255,255,255,0.05)”,border:“1px solid rgba(255,255,255,0.08)”,borderRadius:12,width:40,height:40,cursor:“pointer”,fontSize:16,display:“flex”,alignItems:“center”,justifyContent:“center”};
+const shell={minHeight:“100vh”,background:”#0d1a0a”,color:”#e8f0e4”,fontFamily:”‘DM Sans’,sans-serif”,maxWidth:520,margin:“0 auto”,display:“flex”,flexDirection:“column”,position:“relative”};
+const bg={position:“fixed”,inset:0,pointerEvents:“none”,zIndex:0,background:“radial-gradient(ellipse at 20% 0%,#1a3d14 0%,transparent 55%),radial-gradient(ellipse at 80% 100%,#0f2a0c 0%,transparent 55%)”};
+
+// ── VOICE RECORDER COMPONENT ──
+function VoiceRecorder({ onTranscript }) {
+const [isRecording, setIsRecording] = useState(false);
+const [isSupported, setIsSupported] = useState(true);
+const recognitionRef = useRef(null);
+
+useEffect(() => {
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+if (!SpeechRecognition) { setIsSupported(false); return; }
+}, []);
+
+function startRecording() {
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+if (!SpeechRecognition) return;
+const recognition = new SpeechRecognition();
+recognition.lang = “pt-BR”;
+recognition.continuous = true;
+recognition.interimResults = false;
+recognition.onresult = (e) => {
+const transcript = Array.from(e.results).map(r => r[0].transcript).join(” “);
+onTranscript(transcript);
+};
+recognition.onerror = () => { setIsRecording(false); };
+recognition.onend = () => { setIsRecording(false); };
+recognitionRef.current = recognition;
+recognition.start();
+setIsRecording(true);
+}
+
+function stopRecording() {
+recognitionRef.current?.stop();
+setIsRecording(false);
+}
+
+if (!isSupported) return null;
+
+return (
+<button
+onMouseDown={startRecording}
+onMouseUp={stopRecording}
+onTouchStart={e=>{e.preventDefault();startRecording();}}
+onTouchEnd={e=>{e.preventDefault();stopRecording();}}
+className={isRecording?“recording-pulse”:””}
+style={{
+width:44,height:44,borderRadius:12,border:“none”,cursor:“pointer”,
+background:isRecording?“linear-gradient(135deg,#3d1a1a,#2a0f0f)”:“rgba(255,255,255,0.06)”,
+display:“flex”,alignItems:“center”,justifyContent:“center”,flexShrink:0,
+boxShadow:isRecording?“0 0 0 3px rgba(255,80,80,0.3)”:“none”,
+transition:“all 0.2s”,
+}}
+title={isRecording?“Solte para parar”:“Segure para gravar”}
+>
+{isRecording ? (
+<svg width="18" height="18" viewBox="0 0 24 24" fill="#ff6b6b">
+<rect x="6" y="6" width="12" height="12" rx="2"/>
+</svg>
+) : (
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#84cc7a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+<path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+<path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+<line x1="12" y1="19" x2="12" y2="23"/>
+<line x1="8" y1="23" x2="16" y2="23"/>
+</svg>
+)}
+</button>
+);
+}
+
+// ── AI SUMMARY COMPONENT ──
+function AISummary({ text }) {
+const [summary, setSummary] = useState(””);
+const [loading, setLoading] = useState(false);
+const [shown, setShown] = useState(false);
+
+async function handleSummary() {
+if (shown) { setShown(false); setSummary(””); return; }
+setLoading(true);
+try {
+const result = await generateSummary(text);
+setSummary(result);
+setShown(true);
+} catch(e) {
+setSummary(”• Não foi possível gerar o resumo. Tente novamente.”);
+setShown(true);
+}
+setLoading(false);
+}
+
+return (
+<div style={{marginTop:12}}>
+<button onClick={handleSummary} disabled={loading} style={{
+display:“flex”,alignItems:“center”,gap:8,padding:“10px 16px”,
+borderRadius:12,border:“1px solid rgba(132,204,122,0.2)”,
+background:“rgba(132,204,122,0.06)”,color:”#84cc7a”,
+fontSize:13,fontWeight:600,cursor:“pointer”,transition:“all 0.2s”,
+opacity:loading?0.7:1,
+}}>
+{loading ? (
+<svg className="spinning" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+<path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+</svg>
+) : (
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+</svg>
+)}
+{loading ? “Gerando resumo…” : shown ? “Ocultar resumo” : “✨ Resumo com IA”}
+</button>
+
+```
+  {shown && summary && (
+    <div style={{
+      marginTop:10,background:"rgba(132,204,122,0.05)",
+      border:"1px solid rgba(132,204,122,0.15)",borderRadius:14,padding:"14px 16px",
+    }}>
+      <div style={{fontSize:11,color:"#5a8a52",fontWeight:700,letterSpacing:1,marginBottom:8,textTransform:"uppercase"}}>Resumo do dia</div>
+      {summary.split("\n").filter(l=>l.trim()).map((line,i)=>(
+        <div key={i} style={{fontSize:13,color:"#b0c8a8",lineHeight:1.7,marginBottom:4}}>{line}</div>
+      ))}
+    </div>
+  )}
+</div>
+```
+
+);
+}
+
 function LogoutModal({onConfirm,onCancel}) {
-  return (
-    <div className="modal-overlay" onClick={onCancel}>
-      <div className="modal-box" onClick={e=>e.stopPropagation()}>
-        <div style={{fontSize:32,marginBottom:12}}>🚪</div>
-        <div style={{fontSize:18,fontWeight:700,color:"#c8e8c0",marginBottom:8}}>Sair da conta?</div>
-        <div style={{fontSize:13,color:"#5a8a52",marginBottom:24,lineHeight:1.6}}>Você precisará fazer login novamente para acessar seus dados.</div>
-        <div style={{display:"flex",gap:10}}>
-          <button onClick={onCancel} style={{flex:1,padding:"13px",borderRadius:14,border:"1px solid rgba(255,255,255,0.1)",background:"rgba(255,255,255,0.05)",color:"#b0c8a8",fontWeight:600,cursor:"pointer",fontSize:14}}>Cancelar</button>
-          <button onClick={onConfirm} style={{flex:1,padding:"13px",borderRadius:14,border:"none",background:"linear-gradient(135deg,#3a1414,#2a0f0f)",color:"#ff6b6b",fontWeight:700,cursor:"pointer",fontSize:14}}>Sair</button>
-        </div>
-      </div>
-    </div>
-  );
+return (
+<div className="modal-overlay" onClick={onCancel}>
+<div className=“modal-box” onClick={e=>e.stopPropagation()}>
+<div style={{fontSize:32,marginBottom:12}}>🚪</div>
+<div style={{fontSize:18,fontWeight:700,color:”#c8e8c0”,marginBottom:8}}>Sair da conta?</div>
+<div style={{fontSize:13,color:”#5a8a52”,marginBottom:24,lineHeight:1.6}}>Você precisará fazer login novamente para acessar seus dados.</div>
+<div style={{display:“flex”,gap:10}}>
+<button onClick={onCancel} style={{flex:1,padding:“13px”,borderRadius:14,border:“1px solid rgba(255,255,255,0.1)”,background:“rgba(255,255,255,0.05)”,color:”#b0c8a8”,fontWeight:600,cursor:“pointer”,fontSize:14}}>Cancelar</button>
+<button onClick={onConfirm} style={{flex:1,padding:“13px”,borderRadius:14,border:“none”,background:“linear-gradient(135deg,#3a1414,#2a0f0f)”,color:”#ff6b6b”,fontWeight:700,cursor:“pointer”,fontSize:14}}>Sair</button>
+</div>
+</div>
+</div>
+);
 }
+
 function BottomNav({tab,setTab}) {
-  return (
-    <div className="liquid-nav">
-      <div className="liquid-nav-inner">
-        <button className={`liquid-tab${tab==="diary"?" active":""}`} onClick={()=>setTab("diary")}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-            <polyline points="14 2 14 8 20 8"/>
-            <line x1="16" y1="13" x2="8" y2="13"/>
-            <line x1="16" y1="17" x2="8" y2="17"/>
-          </svg>
-          Diário
-        </button>
-        <button className={`liquid-tab${tab==="week"?" active":""}`} onClick={()=>setTab("week")}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="18" y1="20" x2="18" y2="10"/>
-            <line x1="12" y1="20" x2="12" y2="4"/>
-            <line x1="6" y1="20" x2="6" y2="14"/>
-          </svg>
-          Semana
-        </button>
-      </div>
-    </div>
-  );
+return (
+<div className="liquid-nav">
+<div className="liquid-nav-inner">
+<button className={`liquid-tab${tab==="diary"?" active":""}`} onClick={()=>setTab(“diary”)}>
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+<polyline points="14 2 14 8 20 8"/>
+<line x1="16" y1="13" x2="8" y2="13"/>
+<line x1="16" y1="17" x2="8" y2="17"/>
+</svg>
+Diário
+</button>
+<button className={`liquid-tab${tab==="week"?" active":""}`} onClick={()=>setTab(“week”)}>
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+<line x1="18" y1="20" x2="18" y2="10"/>
+<line x1="12" y1="20" x2="12" y2="4"/>
+<line x1="6" y1="20" x2="6" y2="14"/>
+</svg>
+Semana
+</button>
+</div>
+</div>
+);
 }
+
 function LoginScreen({onLogin,loading}) {
-  return (
-    <div style={shell}>
-      <div style={bg}/>
-      <div style={{position:"relative",zIndex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minHeight:"100vh",padding:"40px 32px",textAlign:"center"}}>
-        <div style={{fontSize:11,letterSpacing:4,color:"#5a8a52",textTransform:"uppercase",marginBottom:12}}>BEM-VINDO AO</div>
-        <div className="vitalis-logo" style={{fontSize:56,color:"#84cc7a",lineHeight:1,marginBottom:8}}>Vitalis</div>
-        <div style={{fontSize:15,color:"#5a8a52",marginBottom:60,lineHeight:1.6}}>Seu diário de saúde e<br/>hábitos sincronizado</div>
-        <button onClick={onLogin} disabled={loading} style={{display:"flex",alignItems:"center",gap:14,padding:"16px 28px",background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:18,cursor:"pointer",fontSize:15,fontWeight:600,color:"#e8f0e4",width:"100%",maxWidth:300,justifyContent:"center",opacity:loading?0.6:1,transition:"all 0.2s"}}>
-          {loading?<span style={{fontSize:14,color:"#5a8a52"}}>Entrando…</span>:(
-            <>
-              <svg width="20" height="20" viewBox="0 0 48 48">
-                <path fill="#FFC107" d="M43.6 20.1H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 7.9 3l5.7-5.7C34.3 6.5 29.4 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.6-.4-3.9z"/>
-                <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 16 19.1 12 24 12c3.1 0 5.8 1.1 7.9 3l5.7-5.7C34.3 6.5 29.4 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/>
-                <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.4 35.5 26.8 36 24 36c-5.2 0-9.6-3.3-11.3-8H6.1C9.5 35.6 16.2 44 24 44z"/>
-                <path fill="#1976D2" d="M43.6 20.1H42V20H24v8h11.3c-.8 2.2-2.3 4.1-4.2 5.4l6.2 5.2C37 38 44 33 44 24c0-1.3-.1-2.6-.4-3.9z"/>
-              </svg>
-              Entrar com Google
-            </>
-          )}
-        </button>
-        <div style={{marginTop:32,fontSize:12,color:"#3a5a34",lineHeight:1.7}}>Seus dados ficam salvos na nuvem<br/>e sincronizados em todos os dispositivos</div>
-      </div>
-    </div>
-  );
+return (
+<div style={shell}>
+<div style={bg}/>
+<div style={{position:“relative”,zIndex:1,display:“flex”,flexDirection:“column”,alignItems:“center”,justifyContent:“center”,minHeight:“100vh”,padding:“40px 32px”,textAlign:“center”}}>
+<div style={{fontSize:11,letterSpacing:4,color:”#5a8a52”,textTransform:“uppercase”,marginBottom:12}}>BEM-VINDO AO</div>
+<div className=“vitalis-logo” style={{fontSize:56,color:”#84cc7a”,lineHeight:1,marginBottom:8}}>Vitalis</div>
+<div style={{fontSize:15,color:”#5a8a52”,marginBottom:60,lineHeight:1.6}}>Seu diário de saúde e<br/>hábitos sincronizado</div>
+<button onClick={onLogin} disabled={loading} style={{display:“flex”,alignItems:“center”,gap:14,padding:“16px 28px”,background:“rgba(255,255,255,0.06)”,border:“1px solid rgba(255,255,255,0.12)”,borderRadius:18,cursor:“pointer”,fontSize:15,fontWeight:600,color:”#e8f0e4”,width:“100%”,maxWidth:300,justifyContent:“center”,opacity:loading?0.6:1,transition:“all 0.2s”}}>
+{loading?<span style={{fontSize:14,color:”#5a8a52”}}>Entrando…</span>:(
+<>
+<svg width="20" height="20" viewBox="0 0 48 48">
+<path fill="#FFC107" d="M43.6 20.1H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 7.9 3l5.7-5.7C34.3 6.5 29.4 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.6-.4-3.9z"/>
+<path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 16 19.1 12 24 12c3.1 0 5.8 1.1 7.9 3l5.7-5.7C34.3 6.5 29.4 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/>
+<path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.4 35.5 26.8 36 24 36c-5.2 0-9.6-3.3-11.3-8H6.1C9.5 35.6 16.2 44 24 44z"/>
+<path fill="#1976D2" d="M43.6 20.1H42V20H24v8h11.3c-.8 2.2-2.3 4.1-4.2 5.4l6.2 5.2C37 38 44 33 44 24c0-1.3-.1-2.6-.4-3.9z"/>
+</svg>
+Entrar com Google
+</>
+)}
+</button>
+<div style={{marginTop:32,fontSize:12,color:”#3a5a34”,lineHeight:1.7}}>Seus dados ficam salvos na nuvem<br/>e sincronizados em todos os dispositivos</div>
+</div>
+</div>
+);
 }
+
 function App() {
-  const [firebaseReady,setFirebaseReady]=useState(!!window._vitalisReady);
-  const [user,setUser]=useState(null);
-  const [authLoading,setAuthLoading]=useState(true);
-  const [loginLoading,setLoginLoading]=useState(false);
-  const [store,setStore]=useState({});
-  const [tab,setTab]=useState("diary");
-  const [openKey,setOpenKey]=useState(null);
-  const [entryTab,setEntryTab]=useState("write");
-  const [newHabit,setNewHabit]=useState("");
-  const [saving,setSaving]=useState(false);
-  const [showLogout,setShowLogout]=useState(false);
-  const [showManage,setShowManage]=useState(false);
-  const [notifHour,setNotifHour]=useState(21);
-  const [notifEnabled,setNotifEnabled]=useState(false);
-  const saveTimer=useRef(null);
-  const tk=todayKey();
-  useEffect(()=>{ if(window._vitalisReady){setFirebaseReady(true);return;} const h=()=>setFirebaseReady(true); window.addEventListener("vitalisReady",h); return ()=>window.removeEventListener("vitalisReady",h); },[]);
-  useEffect(()=>{ if(!firebaseReady||!window._vitalisOnAuth) return; return window._vitalisOnAuth(u=>{setUser(u);setAuthLoading(false);}); },[firebaseReady]);
-  useEffect(()=>{ if(!user||!window._vitalisOnSnapshot) return; return window._vitalisOnSnapshot(user.uid,snap=>{ if(snap.exists()){setStore(snap.data());}else{setStore({});} }); },[user]);
-  useEffect(()=>{ const saved=localStorage.getItem("vitalis_notif"); if(saved){const{enabled,hour}=JSON.parse(saved);setNotifEnabled(enabled);setNotifHour(hour);if(enabled)scheduleNotification(hour);} },[]);
-  const saveToCloud=useCallback(newStore=>{ if(!user) return; clearTimeout(saveTimer.current); setSaving(true); saveTimer.current=setTimeout(async()=>{await window._vitalisSetDoc(user.uid,newStore);setSaving(false);},800); },[user]);
-  function update(fn){setStore(prev=>{const next=fn({...prev});saveToCloud(next);return next;});}
-  const habits=store._habits||DEFAULT_HABITS;
-  function setHabits(fn){update(s=>({...s,_habits:typeof fn==="function"?fn(s._habits||DEFAULT_HABITS):fn}));}
-  const entries=Object.keys(store).filter(k=>!k.startsWith("_")).sort((a,b)=>b.localeCompare(a));
-  const hasTodayEntry=!!store[tk];
-  const entry=openKey?(store[openKey]||{text:"",title:"",habits:{},emotions:[]}):null;
-  const isToday=openKey===tk;
-  const checkedCount=entry?habits.filter(h=>entry.habits?.[h.id]).length:0;
-  const total=habits.length;
-  const percent=total>0?Math.round((checkedCount/total)*100):0;
-  function openEntry(key){setOpenKey(key);setEntryTab("write");}
-  function addToday(){if(!store[tk])update(s=>({...s,[tk]:{text:"",title:"",habits:{},emotions:[]}}));openEntry(tk);}
-  function setText(key,text){update(s=>({...s,[key]:{...(s[key]||{text:"",title:"",habits:{},emotions:[]}),text}}));}
-  function setTitle(key,title){update(s=>({...s,[key]:{...(s[key]||{text:"",title:"",habits:{},emotions:[]}),title}}));}
-  function toggleHabit(key,id){update(s=>{const e=s[key]||{text:"",title:"",habits:{},emotions:[]};return{...s,[key]:{...e,habits:{...e.habits,[id]:!e.habits[id]}}}});}
-  function toggleEmotion(key,emotion){update(s=>{const e=s[key]||{text:"",title:"",habits:{},emotions:[]};const emotions=e.emotions||[];const next=emotions.includes(emotion)?emotions.filter(x=>x!==emotion):[...emotions,emotion];return{...s,[key]:{...e,emotions:next}};});}
-  const last7=Array.from({length:7},(_,i)=>{ const d=new Date();d.setDate(d.getDate()-(6-i)); const k=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; const e=store[k]||{}; const done=habits.filter(h=>e.habits?.[h.id]).length; return{k,label:DAYS_FULL[d.getDay()].slice(0,3),isToday:k===tk,done,pct:total>0?done/total:0}; });
-  const streakCount=(()=>{ let count=0; for(let i=0;i<60;i++){ const d=new Date();d.setDate(d.getDate()-i); const k=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; const e=store[k]||{}; const done=habits.filter(h=>e.habits?.[h.id]).length; if(done===0&&i>0) break; if(done>0) count++; } return count; })();
-  async function toggleNotifications(){ if(!notifEnabled){const granted=await requestNotifications();if(granted){setNotifEnabled(true);scheduleNotification(notifHour);localStorage.setItem("vitalis_notif",JSON.stringify({enabled:true,hour:notifHour}));}} else{setNotifEnabled(false);localStorage.setItem("vitalis_notif",JSON.stringify({enabled:false,hour:notifHour}));} }
-  const Header=({title,onBack})=>(
-    <div style={{padding:"max(52px,env(safe-area-inset-top,0px) + 16px) 24px 16px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-      <div style={{display:"flex",alignItems:"center",gap:12}}>
-        {onBack&&<button onClick={onBack} style={{...iconBtn,width:36,height:36,fontSize:14}}>←</button>}
-        <div>
-          {!onBack&&<div style={{fontSize:10,letterSpacing:3,color:"#5a8a52",textTransform:"uppercase",marginBottom:2}}>VITALIS</div>}
-          <div className={onBack?"":"vitalis-logo"} style={{fontSize:onBack?20:28,fontWeight:onBack?700:600,color:"#c8e8c0"}}>{title}</div>
-        </div>
+const [firebaseReady,setFirebaseReady]=useState(!!window._vitalisReady);
+const [user,setUser]=useState(null);
+const [authLoading,setAuthLoading]=useState(true);
+const [loginLoading,setLoginLoading]=useState(false);
+const [store,setStore]=useState({});
+const [tab,setTab]=useState(“diary”);
+const [openKey,setOpenKey]=useState(null);
+const [entryTab,setEntryTab]=useState(“write”);
+const [newHabit,setNewHabit]=useState(””);
+const [saving,setSaving]=useState(false);
+const [showLogout,setShowLogout]=useState(false);
+const [showManage,setShowManage]=useState(false);
+const [notifHour,setNotifHour]=useState(21);
+const [notifEnabled,setNotifEnabled]=useState(false);
+const saveTimer=useRef(null);
+const tk=todayKey();
+
+useEffect(()=>{ if(window._vitalisReady){setFirebaseReady(true);return;} const h=()=>setFirebaseReady(true); window.addEventListener(“vitalisReady”,h); return ()=>window.removeEventListener(“vitalisReady”,h); },[]);
+useEffect(()=>{ if(!firebaseReady||!window._vitalisOnAuth) return; return window._vitalisOnAuth(u=>{setUser(u);setAuthLoading(false);}); },[firebaseReady]);
+useEffect(()=>{ if(!user||!window._vitalisOnSnapshot) return; return window._vitalisOnSnapshot(user.uid,snap=>{ if(snap.exists()){setStore(snap.data());}else{setStore({});} }); },[user]);
+useEffect(()=>{ const saved=localStorage.getItem(“vitalis_notif”); if(saved){const{enabled,hour}=JSON.parse(saved);setNotifEnabled(enabled);setNotifHour(hour);if(enabled)scheduleNotification(hour);} },[]);
+
+const saveToCloud=useCallback(newStore=>{ if(!user) return; clearTimeout(saveTimer.current); setSaving(true); saveTimer.current=setTimeout(async()=>{await window._vitalisSetDoc(user.uid,newStore);setSaving(false);},800); },[user]);
+
+function update(fn){setStore(prev=>{const next=fn({…prev});saveToCloud(next);return next;});}
+const habits=store._habits||DEFAULT_HABITS;
+function setHabits(fn){update(s=>({…s,_habits:typeof fn===“function”?fn(s.*habits||DEFAULT_HABITS):fn}));}
+const entries=Object.keys(store).filter(k=>!k.startsWith(”*”)).sort((a,b)=>b.localeCompare(a));
+const hasTodayEntry=!!store[tk];
+const entry=openKey?(store[openKey]||{text:””,title:””,habits:{},emotions:[]}):null;
+const isToday=openKey===tk;
+const checkedCount=entry?habits.filter(h=>entry.habits?.[h.id]).length:0;
+const total=habits.length;
+const percent=total>0?Math.round((checkedCount/total)*100):0;
+
+function openEntry(key){setOpenKey(key);setEntryTab(“write”);}
+function addToday(){if(!store[tk])update(s=>({…s,[tk]:{text:””,title:””,habits:{},emotions:[]}}));openEntry(tk);}
+function setText(key,text){update(s=>({…s,[key]:{…(s[key]||{text:””,title:””,habits:{},emotions:[]}),text}}));}
+function setTitle(key,title){update(s=>({…s,[key]:{…(s[key]||{text:””,title:””,habits:{},emotions:[]}),title}}));}
+function toggleHabit(key,id){update(s=>{const e=s[key]||{text:””,title:””,habits:{},emotions:[]};return{…s,[key]:{…e,habits:{…e.habits,[id]:!e.habits[id]}}}});}
+function toggleEmotion(key,emotion){update(s=>{const e=s[key]||{text:””,title:””,habits:{},emotions:[]};const emotions=e.emotions||[];const next=emotions.includes(emotion)?emotions.filter(x=>x!==emotion):[…emotions,emotion];return{…s,[key]:{…e,emotions:next}};});}
+
+function handleTranscript(transcript) {
+const current = store[openKey]?.text || “”;
+const newText = current ? current + “\n\n” + transcript : transcript;
+setText(openKey, newText);
+}
+
+const last7=Array.from({length:7},(_,i)=>{ const d=new Date();d.setDate(d.getDate()-(6-i)); const k=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; const e=store[k]||{}; const done=habits.filter(h=>e.habits?.[h.id]).length; return{k,label:DAYS_FULL[d.getDay()].slice(0,3),isToday:k===tk,done,pct:total>0?done/total:0}; });
+const streakCount=(()=>{ let count=0; for(let i=0;i<60;i++){ const d=new Date();d.setDate(d.getDate()-i); const k=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; const e=store[k]||{}; const done=habits.filter(h=>e.habits?.[h.id]).length; if(done===0&&i>0) break; if(done>0) count++; } return count; })();
+
+async function toggleNotifications(){ if(!notifEnabled){const granted=await requestNotifications();if(granted){setNotifEnabled(true);scheduleNotification(notifHour);localStorage.setItem(“vitalis_notif”,JSON.stringify({enabled:true,hour:notifHour}));}} else{setNotifEnabled(false);localStorage.setItem(“vitalis_notif”,JSON.stringify({enabled:false,hour:notifHour}));} }
+
+const Header=({title,onBack})=>(
+<div style={{padding:“max(52px,env(safe-area-inset-top,0px) + 16px) 24px 16px”,display:“flex”,justifyContent:“space-between”,alignItems:“center”}}>
+<div style={{display:“flex”,alignItems:“center”,gap:12}}>
+{onBack&&<button onClick={onBack} style={{...iconBtn,width:36,height:36,fontSize:14}}>←</button>}
+<div>
+{!onBack&&<div style={{fontSize:10,letterSpacing:3,color:”#5a8a52”,textTransform:“uppercase”,marginBottom:2}}>VITALIS</div>}
+<div className={onBack?””:“vitalis-logo”} style={{fontSize:onBack?20:28,fontWeight:onBack?700:600,color:”#c8e8c0”}}>{title}</div>
+</div>
+</div>
+<div style={{display:“flex”,gap:8,alignItems:“center”}}>
+{saving&&<div style={{fontSize:10,color:”#3a5a34”}}>💾</div>}
+{!onBack&&streakCount>0&&(<div style={{background:”#1a3d14”,border:“1px solid #3a6030”,borderRadius:12,padding:“6px 10px”,textAlign:“center”}}><div style={{fontSize:14}}>🔥</div><div style={{fontSize:9,color:”#84cc7a”,fontWeight:700}}>{streakCount}d</div></div>)}
+{!onBack&&<button onClick={()=>setShowManage(true)} style={iconBtn}>⚙️</button>}
+{!onBack&&<button onClick={()=>setShowLogout(true)} style={iconBtn}>🚪</button>}
+</div>
+</div>
+);
+
+if(!firebaseReady||authLoading) return (<div style={{…shell,alignItems:“center”,justifyContent:“center”}}><div style={bg}/><div style={{position:“relative”,zIndex:1,textAlign:“center”}}><div className=“vitalis-logo” style={{fontSize:48,color:”#84cc7a”}}>Vitalis</div><div style={{fontSize:13,color:”#3a5a34”,marginTop:8}}>Carregando…</div></div></div>);
+if(!user) return <LoginScreen loading={loginLoading} onLogin={async()=>{setLoginLoading(true);try{await window._vitalisSignIn();}catch(e){console.error(e);}setLoginLoading(false);}}/>;
+
+// ── ENTRY VIEW ──
+if(openKey) return (
+<div style={shell}><div style={bg}/>
+{showLogout&&<LogoutModal onConfirm={()=>{window._vitalisSignOut();setShowLogout(false);}} onCancel={()=>setShowLogout(false)}/>}
+<div style={{position:“relative”,zIndex:1,display:“flex”,flexDirection:“column”,minHeight:“100vh”,paddingBottom:40}}>
+<Header title={isToday?“Hoje”:formatKeyFull(openKey)} onBack={()=>setOpenKey(null)}/>
+
+```
+    <div style={{padding:"0 24px 16px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:12}}>
+      <div style={{flex:1,background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:14,padding:"10px 14px"}}>
+        {isToday?(<input className="title-input" value={entry.title||""} onChange={e=>setTitle(openKey,e.target.value)} placeholder="Dê um título ao seu dia…"/>):(<div style={{fontSize:16,fontWeight:700,color:entry.title?"#c8e8c0":"#3a5a34",fontStyle:entry.title?"normal":"italic"}}>{entry.title||"Sem título"}</div>)}
       </div>
-      <div style={{display:"flex",gap:8,alignItems:"center"}}>
-        {saving&&<div style={{fontSize:10,color:"#3a5a34"}}>💾</div>}
-        {!onBack&&streakCount>0&&(<div style={{background:"#1a3d14",border:"1px solid #3a6030",borderRadius:12,padding:"6px 10px",textAlign:"center"}}><div style={{fontSize:14}}>🔥</div><div style={{fontSize:9,color:"#84cc7a",fontWeight:700}}>{streakCount}d</div></div>)}
-        {!onBack&&<button onClick={()=>setShowManage(true)} style={iconBtn}>⚙️</button>}
-        {!onBack&&<button onClick={()=>setShowLogout(true)} style={iconBtn}>🚪</button>}
-      </div>
-    </div>
-  );
-  if(!firebaseReady||authLoading) return (<div style={{...shell,alignItems:"center",justifyContent:"center"}}><div style={bg}/><div style={{position:"relative",zIndex:1,textAlign:"center"}}><div className="vitalis-logo" style={{fontSize:48,color:"#84cc7a"}}>Vitalis</div><div style={{fontSize:13,color:"#3a5a34",marginTop:8}}>Carregando…</div></div></div>);
-  if(!user) return <LoginScreen loading={loginLoading} onLogin={async()=>{setLoginLoading(true);try{await window._vitalisSignIn();}catch(e){console.error(e);}setLoginLoading(false);}}/>;
-  if(openKey) return (
-    <div style={shell}><div style={bg}/>
-      {showLogout&&<LogoutModal onConfirm={()=>{window._vitalisSignOut();setShowLogout(false);}} onCancel={()=>setShowLogout(false)}/>}
-      <div style={{position:"relative",zIndex:1,display:"flex",flexDirection:"column",minHeight:"100vh",paddingBottom:40}}>
-        <Header title={isToday?"Hoje":formatKeyFull(openKey)} onBack={()=>setOpenKey(null)}/>
-        <div style={{padding:"0 24px 16px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:12}}>
-          <div style={{flex:1,background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:14,padding:"10px 14px"}}>
-            {isToday?(<input className="title-input" value={entry.title||""} onChange={e=>setTitle(openKey,e.target.value)} placeholder="Dê um título ao seu dia…"/>):(<div style={{fontSize:16,fontWeight:700,color:entry.title?"#c8e8c0":"#3a5a34",fontStyle:entry.title?"normal":"italic"}}>{entry.title||"Sem título"}</div>)}
-          </div>
-          <div style={{position:"relative",flexShrink:0}}>
-            <RingProgress percent={percent} size={50} stroke={5}/>
-            <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center"}}><span style={{fontSize:10,fontWeight:800,color:"#84cc7a"}}>{percent}%</span></div>
-          </div>
-        </div>
-        <div style={{display:"flex",gap:4,padding:"0 24px 16px"}}>
-          {[["write","✍️ Escrita"],["emotions","😊 Emoções"],["habits","✅ Hábitos"]].map(([t,label])=>(
-            <button key={t} onClick={()=>setEntryTab(t)} style={{flex:1,padding:"9px 4px",borderRadius:12,border:"none",background:entryTab===t?"#84cc7a":"rgba(255,255,255,0.04)",color:entryTab===t?"#0d1a0a":"#5a8a52",fontWeight:700,fontSize:12,cursor:"pointer",transition:"all 0.2s"}}>{label}</button>
-          ))}
-        </div>
-        {entryTab==="write"&&(
-          <div style={{flex:1,padding:"0 24px 20px"}}>
-            {isToday?(<textarea value={entry.text||""} onChange={e=>setText(openKey,e.target.value)} placeholder={"Como foi o seu dia?\n\nEscreva o quanto quiser…"} style={{width:"100%",minHeight:360,background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:18,color:"#d8f0d0",fontSize:15,lineHeight:1.9,padding:"20px",resize:"none",outline:"none",boxSizing:"border-box"}}/>):(<div style={{width:"100%",minHeight:200,background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:18,color:entry.text?"#b0c8a8":"#3a5a34",fontSize:15,lineHeight:1.9,padding:"20px",boxSizing:"border-box",fontStyle:entry.text?"normal":"italic",whiteSpace:"pre-wrap"}}>{entry.text||"Nenhum texto foi escrito neste dia."}</div>)}
-            {!isToday&&<div style={{marginTop:12,textAlign:"center",fontSize:12,color:"#3a5a34"}}>🔒 Somente leitura</div>}
-            {saving&&<div style={{marginTop:8,textAlign:"center",fontSize:11,color:"#3a5a34"}}>Salvando…</div>}
-          </div>
-        )}
-        {entryTab==="emotions"&&(
-          <div style={{flex:1,padding:"0 24px 20px"}}>
-            <div style={{fontSize:13,color:"#5a8a52",marginBottom:16,lineHeight:1.6}}>{isToday?"Como você se sentiu hoje? Selecione quantas quiser.":"Emoções registradas neste dia."}</div>
-            <div style={{display:"flex",flexWrap:"wrap",gap:10}}>
-              {EMOTIONS.map(emotion=>{ const selected=(entry.emotions||[]).includes(emotion); return (<button key={emotion} className={`emotion-tag${selected?" selected":""}`} onClick={()=>isToday&&toggleEmotion(openKey,emotion)} style={{cursor:isToday?"pointer":"default"}}>{emotion}</button>); })}
-            </div>
-            {(entry.emotions||[]).length===0&&!isToday&&(<div style={{textAlign:"center",color:"#3a5a34",padding:"40px 0",fontSize:13,fontStyle:"italic"}}>Nenhuma emoção registrada.</div>)}
-            {!isToday&&<div style={{marginTop:16,textAlign:"center",fontSize:12,color:"#3a5a34"}}>🔒 Somente leitura</div>}
-          </div>
-        )}
-        {entryTab==="habits"&&(
-          <div style={{flex:1,padding:"0 24px 20px",display:"flex",flexDirection:"column",gap:10}}>
-            {percent===100&&<div style={{background:"#1a3d14",border:"1px solid #3a6030",borderRadius:14,padding:"12px 16px",textAlign:"center",fontSize:13,color:"#84cc7a",marginBottom:4}}>🎉 Dia perfeito!</div>}
-            {habits.map(h=>{ const checked=!!entry.habits?.[h.id]; return (<button key={h.id} onClick={()=>isToday&&toggleHabit(openKey,h.id)} style={{display:"flex",alignItems:"center",gap:14,padding:"16px 18px",background:checked?"linear-gradient(135deg,#1e3d18,#162d12)":"rgba(255,255,255,0.03)",border:checked?"1px solid #3a6030":"1px solid rgba(255,255,255,0.07)",borderRadius:16,cursor:isToday?"pointer":"default",textAlign:"left",transition:"all 0.2s",width:"100%"}}><div style={{width:26,height:26,borderRadius:8,flexShrink:0,border:checked?"none":"2px solid #3a5a34",background:checked?"#84cc7a":"transparent",display:"flex",alignItems:"center",justifyContent:"center",transition:"all 0.2s"}}>{checked&&<svg width="14" height="11" viewBox="0 0 14 11" fill="none"><path d="M1 5L5.5 9.5L13 1" stroke="#0d1a0a" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></svg>}</div><span style={{fontSize:15,fontWeight:500,color:checked?"#84cc7a":"#b0c8a8",textDecoration:checked?"line-through":"none",opacity:checked?0.85:1}}>{h.label}</span></button>); })}
-            {!isToday&&<div style={{textAlign:"center",fontSize:12,color:"#3a5a34",marginTop:4}}>🔒 Somente leitura</div>}
-          </div>
-        )}
+      <div style={{position:"relative",flexShrink:0}}>
+        <RingProgress percent={percent} size={50} stroke={5}/>
+        <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center"}}><span style={{fontSize:10,fontWeight:800,color:"#84cc7a"}}>{percent}%</span></div>
       </div>
     </div>
-  );
-  if(showManage) return (
-    <div style={shell}><div style={bg}/>
-      <div style={{position:"relative",zIndex:1,display:"flex",flexDirection:"column",minHeight:"100vh",paddingBottom:40}}>
-        <Header title="Configurações" onBack={()=>setShowManage(false)}/>
-        <div style={{padding:"0 24px 20px",display:"flex",alignItems:"center",gap:12}}>
-          {user.photoURL&&<img src={user.photoURL} style={{width:40,height:40,borderRadius:"50%",border:"2px solid #3a6030"}}/>}
-          <div><div style={{fontSize:14,fontWeight:600,color:"#c8e8c0"}}>{user.displayName}</div><div style={{fontSize:12,color:"#5a8a52"}}>{user.email}</div></div>
-        </div>
-        <div style={{margin:"0 24px 20px",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:18,padding:"18px"}}>
-          <div style={{fontSize:13,fontWeight:700,color:"#c8e8c0",marginBottom:4}}>🔔 Lembrete diário</div>
-          <div style={{fontSize:12,color:"#5a8a52",marginBottom:16}}>Receba uma notificação para escrever no diário</div>
-          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
-            <span style={{fontSize:13,color:"#b0c8a8"}}>Ativar notificações</span>
-            <button onClick={toggleNotifications} style={{width:48,height:28,borderRadius:14,border:"none",cursor:"pointer",background:notifEnabled?"#84cc7a":"rgba(255,255,255,0.1)",position:"relative",transition:"all 0.2s"}}><div style={{position:"absolute",top:3,width:22,height:22,borderRadius:11,background:"white",transition:"all 0.2s",left:notifEnabled?23:3}}/></button>
-          </div>
-          {notifEnabled&&(<div style={{display:"flex",alignItems:"center",gap:10}}><span style={{fontSize:13,color:"#b0c8a8"}}>Horário:</span><input type="number" min="0" max="23" value={notifHour} onChange={e=>{const h=Math.max(0,Math.min(23,parseInt(e.target.value)||0));setNotifHour(h);localStorage.setItem("vitalis_notif",JSON.stringify({enabled:true,hour:h}));scheduleNotification(h);}} style={{width:64,padding:"6px 10px",borderRadius:10,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",color:"#e8f0e4",fontSize:14,outline:"none",textAlign:"center"}}/><span style={{fontSize:13,color:"#5a8a52"}}>h (formato 24h)</span></div>)}
-        </div>
-        <div style={{padding:"0 24px"}}>
-          <div style={{fontSize:13,fontWeight:700,color:"#c8e8c0",marginBottom:12}}>🌿 Hábitos</div>
-          <div style={{display:"flex",gap:8,marginBottom:12}}>
-            <input value={newHabit} onChange={e=>setNewHabit(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"){const l=newHabit.trim();if(l){setHabits(prev=>[...prev,{id:Date.now(),label:l}]);setNewHabit("");}}}} placeholder="Ex: Ler 30 minutos 📚" style={{flex:1,padding:"12px 14px",borderRadius:12,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",color:"#e8f0e4",fontSize:14,outline:"none"}}/>
-            <button onClick={()=>{const l=newHabit.trim();if(l){setHabits(prev=>[...prev,{id:Date.now(),label:l}]);setNewHabit("");}}} style={{padding:"12px 16px",borderRadius:12,border:"none",background:"#84cc7a",color:"#0d1a0a",fontWeight:800,fontSize:18,cursor:"pointer"}}>+</button>
-          </div>
-          <div style={{display:"flex",flexDirection:"column",gap:8}}>
-            {habits.map(h=>(<div key={h.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 14px",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:14}}><span style={{fontSize:14,color:"#b0c8a8"}}>{h.label}</span><button onClick={()=>setHabits(prev=>prev.filter(x=>x.id!==h.id))} style={{background:"rgba(255,60,60,0.1)",border:"1px solid rgba(255,60,60,0.2)",borderRadius:8,color:"#ff6b6b",padding:"4px 10px",cursor:"pointer",fontSize:12,fontWeight:600}}>Remover</button></div>))}
-          </div>
-        </div>
-      </div>
+
+    <div style={{display:"flex",gap:4,padding:"0 24px 16px"}}>
+      {[["write","✍️ Escrita"],["emotions","😊 Emoções"],["habits","✅ Hábitos"]].map(([t,label])=>(
+        <button key={t} onClick={()=>setEntryTab(t)} style={{flex:1,padding:"9px 4px",borderRadius:12,border:"none",background:entryTab===t?"#84cc7a":"rgba(255,255,255,0.04)",color:entryTab===t?"#0d1a0a":"#5a8a52",fontWeight:700,fontSize:12,cursor:"pointer",transition:"all 0.2s"}}>{label}</button>
+      ))}
     </div>
-  );
-  return (
-    <div style={shell}><div style={bg}/>
-      {showLogout&&<LogoutModal onConfirm={()=>{window._vitalisSignOut();setShowLogout(false);}} onCancel={()=>setShowLogout(false)}/>}
-      <div style={{position:"relative",zIndex:1,display:"flex",flexDirection:"column",minHeight:"100vh",paddingBottom:100}}>
-        <Header title="Diário"/>
-        <div style={{padding:"0 24px 16px",display:"flex",alignItems:"center",gap:10}}>
-          {user.photoURL&&<img src={user.photoURL} style={{width:26,height:26,borderRadius:"50%",border:"1px solid #3a6030"}}/>}
-          <span style={{fontSize:13,color:"#5a8a52"}}>{user.displayName||user.email}</span>
-        </div>
-        {tab==="diary"&&(
+
+    {/* WRITE TAB */}
+    {entryTab==="write"&&(
+      <div style={{flex:1,padding:"0 24px 20px"}}>
+        {isToday?(
           <>
-            <div style={{padding:"0 24px 20px"}}>
-              {!hasTodayEntry?(<button onClick={addToday} style={{width:"100%",padding:"18px",borderRadius:18,background:"linear-gradient(135deg,#2a5220,#1a3d14)",border:"1.5px dashed #3a6030",color:"#84cc7a",fontSize:15,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:10}}><span style={{fontSize:22}}>✦</span> Adicionar entrada de hoje</button>):(<button onClick={()=>openEntry(tk)} style={{width:"100%",padding:"18px",borderRadius:18,background:"linear-gradient(135deg,#2a5220,#1a3d14)",border:"1.5px solid #84cc7a",color:"#84cc7a",fontSize:15,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:10}}><span style={{fontSize:20}}>📝</span> Continuar hoje</button>)}
-            </div>
-            <div style={{padding:"0 24px",display:"flex",flexDirection:"column",gap:12,flex:1}}>
-              {entries.length===0&&<div style={{textAlign:"center",color:"#3a5a34",padding:"60px 0",fontSize:14}}>Seu diário está vazio.<br/>Adicione sua primeira entrada!</div>}
-              {entries.map(key=>{
-                const e=store[key]||{};
-                const done=habits.filter(h=>e.habits?.[h.id]).length;
-                const pct=total>0?Math.round(done/total*100):0;
-                const fmt=formatKeyShort(key);
-                const preview=e.text?e.text.slice(0,60)+(e.text.length>60?"…":""):null;
-                const iT=key===tk;
-                const emotions=(e.emotions||[]).slice(0,3);
-                return (
-                  <button key={key} onClick={()=>openEntry(key)} style={{display:"flex",gap:14,padding:"16px",borderRadius:18,border:"none",background:iT?"linear-gradient(135deg,#1e3d18,#162d12)":"rgba(255,255,255,0.03)",borderWidth:1,borderStyle:"solid",borderColor:iT?"#3a6030":"rgba(255,255,255,0.07)",cursor:"pointer",textAlign:"left",width:"100%",alignItems:"flex-start"}}>
-                    <div style={{flexShrink:0,width:48,height:60,borderRadius:14,background:iT?"#84cc7a":"#1a2d16",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}>
-                      <div style={{fontSize:10,color:iT?"#0d1a0a":"#5a8a52",fontWeight:700,textTransform:"uppercase"}}>{fmt.month}</div>
-                      <div style={{fontSize:22,fontWeight:900,color:iT?"#0d1a0a":"#84cc7a",lineHeight:1}}>{fmt.day}</div>
-                      <div style={{fontSize:9,color:iT?"#1a3d14":"#3a5a34"}}>{fmt.weekday}</div>
-                    </div>
-                    <div style={{flex:1,minWidth:0}}>
-                      {iT&&<div style={{fontSize:10,color:"#84cc7a",fontWeight:700,letterSpacing:1,marginBottom:3}}>HOJE</div>}
-                      <div style={{fontSize:15,fontWeight:700,color:e.title?"#c8e8c0":"#3a5a34",fontStyle:e.title?"normal":"italic",marginBottom:3,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{e.title||"Sem título"}</div>
-                      {preview&&<div style={{fontSize:12,color:"#7a9a72",lineHeight:1.4,marginBottom:6,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{preview}</div>}
-                      {emotions.length>0&&(<div style={{display:"flex",gap:4,flexWrap:"wrap",marginBottom:6}}>{emotions.map(em=>(<span key={em} style={{fontSize:11,color:"#5a8a52",background:"rgba(132,204,122,0.08)",border:"1px solid rgba(132,204,122,0.15)",borderRadius:20,padding:"2px 8px"}}>{em}</span>))}{(e.emotions||[]).length>3&&<span style={{fontSize:11,color:"#3a5a34"}}>+{(e.emotions||[]).length-3}</span>}</div>)}
-                      <div style={{display:"flex",alignItems:"center",gap:8}}>
-                        <div style={{height:3,flex:1,background:"#1a2d16",borderRadius:4,overflow:"hidden"}}><div style={{height:"100%",width:`${pct}%`,background:pct===100?"#a8e8a0":"#84cc7a",borderRadius:4}}/></div>
-                        <div style={{fontSize:11,color:"#5a8a52",flexShrink:0}}>{done}/{total}</div>
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </>
-        )}
-        {tab==="week"&&(
-          <div style={{padding:"0 24px"}}>
-            <div style={{fontSize:13,color:"#5a8a52",marginBottom:20}}>Progresso dos últimos 7 dias</div>
-            <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:20,padding:"24px 16px",marginBottom:20}}>
-              <div style={{display:"flex",alignItems:"flex-end",gap:6,height:150,justifyContent:"space-between"}}>
-                {last7.map(({label,isToday:iT,done,pct})=>(<div key={label} style={{display:"flex",flexDirection:"column",alignItems:"center",flex:1,gap:6}}><div style={{fontSize:10,color:"#5a8a52"}}>{done>0?done:""}</div><div style={{width:"100%",maxWidth:36,height:Math.max(pct*120,pct>0?8:2),background:iT?"linear-gradient(180deg,#a8e8a0,#84cc7a)":pct>0?"linear-gradient(180deg,#3a6030,#2a4d22)":"#1a2a18",borderRadius:"8px 8px 4px 4px",border:iT?"1px solid #84cc7a":"none",transition:"height 0.6s cubic-bezier(.4,2,.6,1)"}}/><div style={{fontSize:11,color:iT?"#84cc7a":"#3a5a34",fontWeight:iT?700:400}}>{label}</div></div>))}
+            {/* Toolbar: mic + char count */}
+            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
+              <VoiceRecorder onTranscript={handleTranscript}/>
+              <div style={{fontSize:11,color:"#3a5a34",flex:1}}>
+                {entry.text ? `${entry.text.length} caracteres` : "Segure 🎙️ para falar"}
               </div>
             </div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-              {[{label:"Melhor dia",value:`${Math.round(Math.max(...last7.map(d=>d.pct))*100)}%`,icon:"🏆"},{label:"Média semanal",value:`${Math.round(last7.reduce((a,d)=>a+d.pct,0)/7*100)}%`,icon:"📊"},{label:"Dias ativos",value:last7.filter(d=>d.done>0).length,icon:"📅"},{label:"Sequência",value:`${streakCount}🔥`,icon:""}].map(({label,value,icon})=>(<div key={label} style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:16,padding:"16px"}}><div style={{fontSize:20,marginBottom:4}}>{icon}</div><div style={{fontSize:22,fontWeight:800,color:"#84cc7a"}}>{value}</div><div style={{fontSize:11,color:"#5a8a52",marginTop:2}}>{label}</div></div>))}
+            <textarea value={entry.text||""} onChange={e=>setText(openKey,e.target.value)}
+              placeholder={"Como foi o seu dia?\n\nEscreva ou use o microfone acima…"}
+              style={{width:"100%",minHeight:300,background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:18,color:"#d8f0d0",fontSize:15,lineHeight:1.9,padding:"20px",resize:"none",outline:"none",boxSizing:"border-box"}}/>
+            {entry.text && entry.text.length > 50 && (
+              <AISummary text={entry.text}/>
+            )}
+          </>
+        ):(
+          <>
+            <div style={{width:"100%",minHeight:200,background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:18,color:entry.text?"#b0c8a8":"#3a5a34",fontSize:15,lineHeight:1.9,padding:"20px",boxSizing:"border-box",fontStyle:entry.text?"normal":"italic",whiteSpace:"pre-wrap"}}>
+              {entry.text||"Nenhum texto foi escrito neste dia."}
             </div>
-          </div>
+            {entry.text && entry.text.length > 50 && (
+              <AISummary text={entry.text}/>
+            )}
+            <div style={{marginTop:12,textAlign:"center",fontSize:12,color:"#3a5a34"}}>🔒 Somente leitura</div>
+          </>
         )}
+        {saving&&<div style={{marginTop:8,textAlign:"center",fontSize:11,color:"#3a5a34"}}>Salvando…</div>}
       </div>
-      <BottomNav tab={tab} setTab={setTab}/>
-    </div>
-  );
+    )}
+
+    {/* EMOTIONS TAB */}
+    {entryTab==="emotions"&&(
+      <div style={{flex:1,padding:"0 24px 20px"}}>
+        <div style={{fontSize:13,color:"#5a8a52",marginBottom:16,lineHeight:1.6}}>{isToday?"Como você se sentiu hoje? Selecione quantas quiser.":"Emoções registradas neste dia."}</div>
+        <div style={{display:"flex",flexWrap:"wrap",gap:10}}>
+          {EMOTIONS.map(emotion=>{ const selected=(entry.emotions||[]).includes(emotion); return (<button key={emotion} className={`emotion-tag${selected?" selected":""}`} onClick={()=>isToday&&toggleEmotion(openKey,emotion)} style={{cursor:isToday?"pointer":"default"}}>{emotion}</button>); })}
+        </div>
+        {(entry.emotions||[]).length===0&&!isToday&&(<div style={{textAlign:"center",color:"#3a5a34",padding:"40px 0",fontSize:13,fontStyle:"italic"}}>Nenhuma emoção registrada.</div>)}
+        {!isToday&&<div style={{marginTop:16,textAlign:"center",fontSize:12,color:"#3a5a34"}}>🔒 Somente leitura</div>}
+      </div>
+    )}
+
+    {/* HABITS TAB */}
+    {entryTab==="habits"&&(
+      <div style={{flex:1,padding:"0 24px 20px",display:"flex",flexDirection:"column",gap:10}}>
+        {percent===100&&<div style={{background:"#1a3d14",border:"1px solid #3a6030",borderRadius:14,padding:"12px 16px",textAlign:"center",fontSize:13,color:"#84cc7a",marginBottom:4}}>🎉 Dia perfeito!</div>}
+        {habits.map(h=>{ const checked=!!entry.habits?.[h.id]; return (<button key={h.id} onClick={()=>isToday&&toggleHabit(openKey,h.id)} style={{display:"flex",alignItems:"center",gap:14,padding:"16px 18px",background:checked?"linear-gradient(135deg,#1e3d18,#162d12)":"rgba(255,255,255,0.03)",border:checked?"1px solid #3a6030":"1px solid rgba(255,255,255,0.07)",borderRadius:16,cursor:isToday?"pointer":"default",textAlign:"left",transition:"all 0.2s",width:"100%"}}><div style={{width:26,height:26,borderRadius:8,flexShrink:0,border:checked?"none":"2px solid #3a5a34",background:checked?"#84cc7a":"transparent",display:"flex",alignItems:"center",justifyContent:"center",transition:"all 0.2s"}}>{checked&&<svg width="14" height="11" viewBox="0 0 14 11" fill="none"><path d="M1 5L5.5 9.5L13 1" stroke="#0d1a0a" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></svg>}</div><span style={{fontSize:15,fontWeight:500,color:checked?"#84cc7a":"#b0c8a8",textDecoration:checked?"line-through":"none",opacity:checked?0.85:1}}>{h.label}</span></button>); })}
+        {!isToday&&<div style={{textAlign:"center",fontSize:12,color:"#3a5a34",marginTop:4}}>🔒 Somente leitura</div>}
+      </div>
+    )}
+  </div>
+</div>
+```
+
+);
+
+// ── MANAGE ──
+if(showManage) return (
+<div style={shell}><div style={bg}/>
+<div style={{position:“relative”,zIndex:1,display:“flex”,flexDirection:“column”,minHeight:“100vh”,paddingBottom:40}}>
+<Header title=“Configurações” onBack={()=>setShowManage(false)}/>
+<div style={{padding:“0 24px 20px”,display:“flex”,alignItems:“center”,gap:12}}>
+{user.photoURL&&<img src={user.photoURL} style={{width:40,height:40,borderRadius:“50%”,border:“2px solid #3a6030”}}/>}
+<div><div style={{fontSize:14,fontWeight:600,color:”#c8e8c0”}}>{user.displayName}</div><div style={{fontSize:12,color:”#5a8a52”}}>{user.email}</div></div>
+</div>
+<div style={{margin:“0 24px 20px”,background:“rgba(255,255,255,0.03)”,border:“1px solid rgba(255,255,255,0.07)”,borderRadius:18,padding:“18px”}}>
+<div style={{fontSize:13,fontWeight:700,color:”#c8e8c0”,marginBottom:4}}>🔔 Lembrete diário</div>
+<div style={{fontSize:12,color:”#5a8a52”,marginBottom:16}}>Receba uma notificação para escrever no diário</div>
+<div style={{display:“flex”,alignItems:“center”,justifyContent:“space-between”,marginBottom:12}}>
+<span style={{fontSize:13,color:”#b0c8a8”}}>Ativar notificações</span>
+<button onClick={toggleNotifications} style={{width:48,height:28,borderRadius:14,border:“none”,cursor:“pointer”,background:notifEnabled?”#84cc7a”:“rgba(255,255,255,0.1)”,position:“relative”,transition:“all 0.2s”}}><div style={{position:“absolute”,top:3,width:22,height:22,borderRadius:11,background:“white”,transition:“all 0.2s”,left:notifEnabled?23:3}}/></button>
+</div>
+{notifEnabled&&(<div style={{display:“flex”,alignItems:“center”,gap:10}}><span style={{fontSize:13,color:”#b0c8a8”}}>Horário:</span><input type=“number” min=“0” max=“23” value={notifHour} onChange={e=>{const h=Math.max(0,Math.min(23,parseInt(e.target.value)||0));setNotifHour(h);localStorage.setItem(“vitalis_notif”,JSON.stringify({enabled:true,hour:h}));scheduleNotification(h);}} style={{width:64,padding:“6px 10px”,borderRadius:10,background:“rgba(255,255,255,0.05)”,border:“1px solid rgba(255,255,255,0.1)”,color:”#e8f0e4”,fontSize:14,outline:“none”,textAlign:“center”}}/><span style={{fontSize:13,color:”#5a8a52”}}>h (formato 24h)</span></div>)}
+</div>
+<div style={{padding:“0 24px”}}>
+<div style={{fontSize:13,fontWeight:700,color:”#c8e8c0”,marginBottom:12}}>🌿 Hábitos</div>
+<div style={{display:“flex”,gap:8,marginBottom:12}}>
+<input value={newHabit} onChange={e=>setNewHabit(e.target.value)} onKeyDown={e=>{if(e.key===“Enter”){const l=newHabit.trim();if(l){setHabits(prev=>[…prev,{id:Date.now(),label:l}]);setNewHabit(””);}}}} placeholder=“Ex: Ler 30 minutos 📚” style={{flex:1,padding:“12px 14px”,borderRadius:12,background:“rgba(255,255,255,0.05)”,border:“1px solid rgba(255,255,255,0.1)”,color:”#e8f0e4”,fontSize:14,outline:“none”}}/>
+<button onClick={()=>{const l=newHabit.trim();if(l){setHabits(prev=>[…prev,{id:Date.now(),label:l}]);setNewHabit(””);}}} style={{padding:“12px 16px”,borderRadius:12,border:“none”,background:”#84cc7a”,color:”#0d1a0a”,fontWeight:800,fontSize:18,cursor:“pointer”}}>+</button>
+</div>
+<div style={{display:“flex”,flexDirection:“column”,gap:8}}>
+{habits.map(h=>(<div key={h.id} style={{display:“flex”,alignItems:“center”,justifyContent:“space-between”,padding:“12px 14px”,background:“rgba(255,255,255,0.03)”,border:“1px solid rgba(255,255,255,0.07)”,borderRadius:14}}><span style={{fontSize:14,color:”#b0c8a8”}}>{h.label}</span><button onClick={()=>setHabits(prev=>prev.filter(x=>x.id!==h.id))} style={{background:“rgba(255,60,60,0.1)”,border:“1px solid rgba(255,60,60,0.2)”,borderRadius:8,color:”#ff6b6b”,padding:“4px 10px”,cursor:“pointer”,fontSize:12,fontWeight:600}}>Remover</button></div>))}
+</div>
+</div>
+</div>
+</div>
+);
+
+// ── MAIN ──
+return (
+<div style={shell}><div style={bg}/>
+{showLogout&&<LogoutModal onConfirm={()=>{window._vitalisSignOut();setShowLogout(false);}} onCancel={()=>setShowLogout(false)}/>}
+<div style={{position:“relative”,zIndex:1,display:“flex”,flexDirection:“column”,minHeight:“100vh”,paddingBottom:100}}>
+<Header title="Diário"/>
+<div style={{padding:“0 24px 16px”,display:“flex”,alignItems:“center”,gap:10}}>
+{user.photoURL&&<img src={user.photoURL} style={{width:26,height:26,borderRadius:“50%”,border:“1px solid #3a6030”}}/>}
+<span style={{fontSize:13,color:”#5a8a52”}}>{user.displayName||user.email}</span>
+</div>
+
+```
+    {tab==="diary"&&(
+      <>
+        <div style={{padding:"0 24px 20px"}}>
+          {!hasTodayEntry?(<button onClick={addToday} style={{width:"100%",padding:"18px",borderRadius:18,background:"linear-gradient(135deg,#2a5220,#1a3d14)",border:"1.5px dashed #3a6030",color:"#84cc7a",fontSize:15,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:10}}><span style={{fontSize:22}}>✦</span> Adicionar entrada de hoje</button>):(<button onClick={()=>openEntry(tk)} style={{width:"100%",padding:"18px",borderRadius:18,background:"linear-gradient(135deg,#2a5220,#1a3d14)",border:"1.5px solid #84cc7a",color:"#84cc7a",fontSize:15,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:10}}><span style={{fontSize:20}}>📝</span> Continuar hoje</button>)}
+        </div>
+        <div style={{padding:"0 24px",display:"flex",flexDirection:"column",gap:12,flex:1}}>
+          {entries.length===0&&<div style={{textAlign:"center",color:"#3a5a34",padding:"60px 0",fontSize:14}}>Seu diário está vazio.<br/>Adicione sua primeira entrada!</div>}
+          {entries.map(key=>{
+            const e=store[key]||{};
+            const done=habits.filter(h=>e.habits?.[h.id]).length;
+            const pct=total>0?Math.round(done/total*100):0;
+            const fmt=formatKeyShort(key);
+            const preview=e.text?e.text.slice(0,60)+(e.text.length>60?"…":""):null;
+            const iT=key===tk;
+            const emotions=(e.emotions||[]).slice(0,3);
+            return (
+              <button key={key} onClick={()=>openEntry(key)} style={{display:"flex",gap:14,padding:"16px",borderRadius:18,border:"none",background:iT?"linear-gradient(135deg,#1e3d18,#162d12)":"rgba(255,255,255,0.03)",borderWidth:1,borderStyle:"solid",borderColor:iT?"#3a6030":"rgba(255,255,255,0.07)",cursor:"pointer",textAlign:"left",width:"100%",alignItems:"flex-start"}}>
+                <div style={{flexShrink:0,width:48,height:60,borderRadius:14,background:iT?"#84cc7a":"#1a2d16",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}>
+                  <div style={{fontSize:10,color:iT?"#0d1a0a":"#5a8a52",fontWeight:700,textTransform:"uppercase"}}>{fmt.month}</div>
+                  <div style={{fontSize:22,fontWeight:900,color:iT?"#0d1a0a":"#84cc7a",lineHeight:1}}>{fmt.day}</div>
+                  <div style={{fontSize:9,color:iT?"#1a3d14":"#3a5a34"}}>{fmt.weekday}</div>
+                </div>
+                <div style={{flex:1,minWidth:0}}>
+                  {iT&&<div style={{fontSize:10,color:"#84cc7a",fontWeight:700,letterSpacing:1,marginBottom:3}}>HOJE</div>}
+                  <div style={{fontSize:15,fontWeight:700,color:e.title?"#c8e8c0":"#3a5a34",fontStyle:e.title?"normal":"italic",marginBottom:3,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{e.title||"Sem título"}</div>
+                  {preview&&<div style={{fontSize:12,color:"#7a9a72",lineHeight:1.4,marginBottom:6,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{preview}</div>}
+                  {emotions.length>0&&(<div style={{display:"flex",gap:4,flexWrap:"wrap",marginBottom:6}}>{emotions.map(em=>(<span key={em} style={{fontSize:11,color:"#5a8a52",background:"rgba(132,204,122,0.08)",border:"1px solid rgba(132,204,122,0.15)",borderRadius:20,padding:"2px 8px"}}>{em}</span>))}{(e.emotions||[]).length>3&&<span style={{fontSize:11,color:"#3a5a34"}}>+{(e.emotions||[]).length-3}</span>}</div>)}
+                  <div style={{display:"flex",alignItems:"center",gap:8}}>
+                    <div style={{height:3,flex:1,background:"#1a2d16",borderRadius:4,overflow:"hidden"}}><div style={{height:"100%",width:`${pct}%`,background:pct===100?"#a8e8a0":"#84cc7a",borderRadius:4}}/></div>
+                    <div style={{fontSize:11,color:"#5a8a52",flexShrink:0}}>{done}/{total}</div>
+                  </div>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </>
+    )}
+
+    {tab==="week"&&(
+      <div style={{padding:"0 24px"}}>
+        <div style={{fontSize:13,color:"#5a8a52",marginBottom:20}}>Progresso dos últimos 7 dias</div>
+        <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:20,padding:"24px 16px",marginBottom:20}}>
+          <div style={{display:"flex",alignItems:"flex-end",gap:6,height:150,justifyContent:"space-between"}}>
+            {last7.map(({label,isToday:iT,done,pct})=>(<div key={label} style={{display:"flex",flexDirection:"column",alignItems:"center",flex:1,gap:6}}><div style={{fontSize:10,color:"#5a8a52"}}>{done>0?done:""}</div><div style={{width:"100%",maxWidth:36,height:Math.max(pct*120,pct>0?8:2),background:iT?"linear-gradient(180deg,#a8e8a0,#84cc7a)":pct>0?"linear-gradient(180deg,#3a6030,#2a4d22)":"#1a2a18",borderRadius:"8px 8px 4px 4px",border:iT?"1px solid #84cc7a":"none",transition:"height 0.6s cubic-bezier(.4,2,.6,1)"}}/><div style={{fontSize:11,color:iT?"#84cc7a":"#3a5a34",fontWeight:iT?700:400}}>{label}</div></div>))}
+          </div>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+          {[{label:"Melhor dia",value:`${Math.round(Math.max(...last7.map(d=>d.pct))*100)}%`,icon:"🏆"},{label:"Média semanal",value:`${Math.round(last7.reduce((a,d)=>a+d.pct,0)/7*100)}%`,icon:"📊"},{label:"Dias ativos",value:last7.filter(d=>d.done>0).length,icon:"📅"},{label:"Sequência",value:`${streakCount}🔥`,icon:""}].map(({label,value,icon})=>(<div key={label} style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:16,padding:"16px"}}><div style={{fontSize:20,marginBottom:4}}>{icon}</div><div style={{fontSize:22,fontWeight:800,color:"#84cc7a"}}>{value}</div><div style={{fontSize:11,color:"#5a8a52",marginTop:2}}>{label}</div></div>))}
+        </div>
+      </div>
+    )}
+  </div>
+  <BottomNav tab={tab} setTab={setTab}/>
+</div>
+```
+
+);
 }
-const root=ReactDOM.createRoot(document.getElementById("root"));
+
+const root=ReactDOM.createRoot(document.getElementById(“root”));
 root.render(<App/>);
 </script>
+
 </body>
 </html>
