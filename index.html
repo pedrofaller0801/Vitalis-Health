@@ -130,21 +130,11 @@ async function generateSummary(text) {
   const response = await fetch("https://vitalis-ai.pedrofaller0801.workers.dev/", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: "gpt-4o-mini",
-      messages: [{
-        role: "user",
-        content: `Leia esta entrada de diário e gere um resumo em bullet points com os pontos principais do dia. Seja conciso e empático. Responda APENAS os bullet points em português, sem introdução ou conclusão. Use • como marcador.\n\nEntrada:\n${text}`
-      }],
-      max_tokens: 500
-    })
+    body: JSON.stringify({ text })
   });
   const data = await response.json();
-  console.log("OpenAI response:", JSON.stringify(data));
-  if (data.error) return `• Erro: ${data.error.message}`;
-    const content = data.choices?.[0]?.message?.content;
-  if (content) return content;
-  return "• Erro: " + JSON.stringify(data);
+  if (data.error) return `• Erro: ${data.error}`;
+  return data.content || "• Sem conteúdo na resposta";
 }
 
 function RingProgress({percent,size=54,stroke=5}) {
