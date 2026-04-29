@@ -49,35 +49,37 @@
 
 <div id="root"></div>
 
-<!-- Load Firebase FIRST as regular scripts via CDN (not module) to avoid timing issues -->
+<!-- Load Firebase async so it doesn't block rendering -->
 
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js" async onload="window._fbAppLoaded=true;window._checkFirebase&&window._checkFirebase()"></script>
 
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js" async onload="window._fbAuthLoaded=true;window._checkFirebase&&window._checkFirebase()"></script>
 
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js" async onload="window._fbFsLoaded=true;window._checkFirebase&&window._checkFirebase()"></script>
 
 <script>
-// Initialize Firebase synchronously
-const firebaseConfig = {
-  apiKey: "AIzaSyAo8e9Yf3kduTxOrRAl1FSum5mtS4aFZK4",
-  authDomain: "vitalis-health-d22b6.firebaseapp.com",
-  projectId: "vitalis-health-d22b6",
-  storageBucket: "vitalis-health-d22b6.firebasestorage.app",
-  messagingSenderId: "928994746177",
-  appId: "1:928994746177:web:fe026c47017553817c4bc0",
-  measurementId: "G-1NDQJY04P3"
+window._checkFirebase = function() {
+  if (!window._fbAppLoaded || !window._fbAuthLoaded || !window._fbFsLoaded) return;
+  const firebaseConfig = {
+    apiKey: "AIzaSyAo8e9Yf3kduTxOrRAl1FSum5mtS4aFZK4",
+    authDomain: "vitalis-health-d22b6.firebaseapp.com",
+    projectId: "vitalis-health-d22b6",
+    storageBucket: "vitalis-health-d22b6.firebasestorage.app",
+    messagingSenderId: "928994746177",
+    appId: "1:928994746177:web:fe026c47017553817c4bc0",
+    measurementId: "G-1NDQJY04P3"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const _auth = firebase.auth();
+  const _db = firebase.firestore();
+  window._vitalisSignIn = () => _auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
+  window._vitalisSignOut = () => _auth.signOut();
+  window._vitalisOnAuth = (cb) => _auth.onAuthStateChanged(cb);
+  window._vitalisSetDoc = (uid, data) => _db.collection("users").doc(uid).set(data);
+  window._vitalisOnSnapshot = (uid, cb) => _db.collection("users").doc(uid).onSnapshot(cb);
+  window._vitalisReady = true;
+  window.dispatchEvent(new Event("vitalisReady"));
 };
-firebase.initializeApp(firebaseConfig);
-const _auth = firebase.auth();
-const _db = firebase.firestore();
-
-window._vitalisSignIn = () => _auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
-window._vitalisSignOut = () => _auth.signOut();
-window._vitalisOnAuth = (cb) => _auth.onAuthStateChanged(cb);
-window._vitalisSetDoc = (uid, data) => _db.collection("users").doc(uid).set(data);
-window._vitalisOnSnapshot = (uid, cb) => _db.collection("users").doc(uid).onSnapshot(cb);
-window._vitalisReady = true;
 </script>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
@@ -295,26 +297,27 @@ function App() {
     const splash = document.getElementById("splash");
     if(splash) splash.style.display = "none";
 
-    // If Firebase functions not available, go straight to login
-    if (!window._vitalisOnAuth) {
-      setAuthLoading(false);
-      return;
+    const timeout = setTimeout(() => { setAuthLoading(false); }, 8000);
+
+    function initAuth() {
+      if (!window._vitalisOnAuth) return;
+      clearTimeout(timeout);
+      try {
+        const unsub = window._vitalisOnAuth(u=>{
+          setUser(u);
+          setAuthLoading(false);
+        });
+        return unsub;
+      } catch(e) { setAuthLoading(false); }
     }
 
-    const timeout = setTimeout(() => {
-      setAuthLoading(false);
-    }, 4000);
-
-    try {
-      const unsub = window._vitalisOnAuth(u=>{
-        clearTimeout(timeout);
-        setUser(u);
-        setAuthLoading(false);
-      });
-      return () => { clearTimeout(timeout); try { unsub && unsub(); } catch(e){} };
-    } catch(e) {
-      clearTimeout(timeout);
-      setAuthLoading(false);
+    if (window._vitalisReady) {
+      const unsub = initAuth();
+      return () => { try { unsub && unsub(); } catch(e){} };
+    } else {
+      const handler = () => { const unsub = initAuth(); };
+      window.addEventListener("vitalisReady", handler);
+      return () => { clearTimeout(timeout); window.removeEventListener("vitalisReady", handler); };
     }
   },[]);
 
