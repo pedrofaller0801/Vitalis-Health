@@ -126,16 +126,6 @@ async function requestNotifications() {
   return (await Notification.requestPermission())==="granted";
 }
 
-async function generateSummary(text) {
-  const response = await fetch("https://vitalis-ai.pedrofaller0801.workers.dev/", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text })
-  });
-  const data = await response.json();
-  if (data.content) return data.content;
-  return "• Erro: " + data.debug;
-}
 
 function RingProgress({percent,size=54,stroke=5}) {
   const r=(size-stroke)/2,circ=2*Math.PI*r,offset=circ-(percent/100)*circ;
@@ -159,29 +149,33 @@ function VoiceRecorder({ onTranscript }) {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SpeechRecognition) return null;
 
-  function startRecording() {
-    const recognition = new SpeechRecognition();
-    recognition.lang = "pt-BR";
-    recognition.continuous = true;
-    recognition.interimResults = false;
-    recognition.onresult = (e) => {
-      const transcript = Array.from(e.results).map(r => r[0].transcript).join(" ");
-      onTranscript(transcript);
-    };
-    recognition.onerror = () => setIsRecording(false);
-    recognition.onend = () => setIsRecording(false);
-    recognitionRef.current = recognition;
-    recognition.start();
-    setIsRecording(true);
+  function toggleRecording() {
+    if (isRecording) {
+      recognitionRef.current?.stop();
+      setIsRecording(false);
+    } else {
+      const recognition = new SpeechRecognition();
+      recognition.lang = "pt-BR";
+      recognition.continuous = true;
+      recognition.interimResults = false;
+      recognition.onresult = (e) => {
+        const transcript = Array.from(e.results).map(r => r[0].transcript).join(" ");
+        onTranscript(transcript);
+      };
+      recognition.onerror = () => setIsRecording(false);
+      recognition.onend = () => setIsRecording(false);
+      recognitionRef.current = recognition;
+      recognition.start();
+      setIsRecording(true);
+    }
   }
-  function stopRecording() { recognitionRef.current?.stop(); setIsRecording(false); }
 
   return (
     <button
-      onMouseDown={startRecording} onMouseUp={stopRecording}
-      onTouchStart={e=>{e.preventDefault();startRecording();}} onTouchEnd={e=>{e.preventDefault();stopRecording();}}
+      onClick={toggleRecording}
       className={isRecording?"recording-pulse":""}
       style={{width:44,height:44,borderRadius:12,border:"none",cursor:"pointer",background:isRecording?"linear-gradient(135deg,#3d1a1a,#2a0f0f)":"rgba(255,255,255,0.06)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,boxShadow:isRecording?"0 0 0 3px rgba(255,80,80,0.3)":"none",transition:"all 0.2s"}}
+      title={isRecording?"Clique para parar":"Clique para gravar"}
     >
       {isRecording ? (
         <svg width="18" height="18" viewBox="0 0 24 24" fill="#ff6b6b"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
@@ -195,19 +189,6 @@ function VoiceRecorder({ onTranscript }) {
     </button>
   );
 }
-
-function AISummary({ text }) {
-  const [summary, setSummary] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [shown, setShown] = useState(false);
-
-  async function handleSummary() {
-    if (shown) { setShown(false); setSummary(""); return; }
-    setLoading(true);
-    try { const result = await generateSummary(text); setSummary(result); setShown(true); }
-    catch(e) { setSummary("• Não foi possível gerar o resumo. Tente novamente."); setShown(true); }
-    setLoading(false);
-  }
 
   return (
     <div style={{marginTop:12}}>
@@ -396,12 +377,12 @@ function App() {
                   <div style={{fontSize:11,color:"#3a5a34",flex:1}}>{entry.text?`${entry.text.length} caracteres`:"Segure 🎙️ para falar"}</div>
                 </div>
                 <textarea value={entry.text||""} onChange={e=>setText(openKey,e.target.value)} placeholder={"Como foi o seu dia?\n\nEscreva ou use o microfone acima…"} style={{width:"100%",minHeight:300,background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:18,color:"#d8f0d0",fontSize:15,lineHeight:1.9,padding:"20px",resize:"none",outline:"none",boxSizing:"border-box"}}/>
-                {entry.text&&entry.text.length>50&&<AISummary text={entry.text}/>}
+                
               </>
             ):(
               <>
                 <div style={{width:"100%",minHeight:200,background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:18,color:entry.text?"#b0c8a8":"#3a5a34",fontSize:15,lineHeight:1.9,padding:"20px",boxSizing:"border-box",fontStyle:entry.text?"normal":"italic",whiteSpace:"pre-wrap"}}>{entry.text||"Nenhum texto foi escrito neste dia."}</div>
-                {entry.text&&entry.text.length>50&&<AISummary text={entry.text}/>}
+                
                 <div style={{marginTop:12,textAlign:"center",fontSize:12,color:"#3a5a34"}}>🔒 Somente leitura</div>
               </>
             )}
