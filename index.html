@@ -142,7 +142,9 @@ async function generateSummary(text) {
   const data = await response.json();
   console.log("OpenAI response:", JSON.stringify(data));
   if (data.error) return `• Erro: ${data.error.message}`;
-  return data.choices?.[0]?.message?.content || "• Sem conteúdo na resposta";
+    const content = data.choices?.[0]?.message?.content;
+  if (content) return content;
+  return "• Erro: " + JSON.stringify(data);
 }
 
 function RingProgress({percent,size=54,stroke=5}) {
